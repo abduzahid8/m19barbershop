@@ -1,4 +1,8 @@
 {
-  "compilerOptions": {},
-  "extends": "expo/tsconfig.base"
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-native"
+  },
+  "extends": "expo/tsconfig.base",
+  "exclude": ["Dovud", "node_modules", "dist", ".expo"]
 }

@@ -1,0 +1,296 @@
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Dimensions, FlatList, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { barbers } from '../data';
+import { colors, spacing, fontSize, fonts, borderRadius, cardShadow } from '../theme';
+import BarberCard from '../components/BarberCard';
+import Shimmer from '../components/Shimmer';
+import type { RootStackParamList } from '../navigation/AppNavigator';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const CONTENT_PAD = spacing.xxl;
+const HERO_W = SCREEN_W - CONTENT_PAD * 2;
+const HERO_H = 420;
+const DOT_SIZE = 6;
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+function ShimmerState() {
+  return (
+    <View style={{ flex: 1, paddingHorizontal: CONTENT_PAD, paddingTop: spacing.xl }}>
+      <Shimmer loading width={SCREEN_W * 0.9} height={28} borderRadius={4} />
+      <View style={{ height: spacing.xxl }} />
+      <Shimmer loading width={SCREEN_W - CONTENT_PAD * 2} height={HERO_H} borderRadius={borderRadius.xl} />
+      <View style={{ height: spacing.xxl }} />
+      <Shimmer loading width={120} height={18} borderRadius={4} />
+      <View style={{ height: spacing.lg }} />
+      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        {[0, 1].map((i) => (
+          <Shimmer key={i} loading width={(SCREEN_W - CONTENT_PAD * 2 - spacing.sm) / 2} height={180} borderRadius={borderRadius.md} />
+        ))}
+      </View>
+      <View style={{ height: spacing.sm }} />
+      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        {[0, 1].map((i) => (
+          <Shimmer key={i} loading width={(SCREEN_W - CONTENT_PAD * 2 - spacing.sm) / 2} height={180} borderRadius={borderRadius.md} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function HeroCard({ barber, index, scrollX }: { barber: typeof barbers[0]; index: number; scrollX: Animated.Value }) {
+  const inputRange = [(index - 1) * HERO_W, index * HERO_W, (index + 1) * HERO_W];
+  const scale = scrollX.interpolate({ inputRange, outputRange: [0.88, 1, 0.88], extrapolate: 'clamp' });
+  const opacity = scrollX.interpolate({ inputRange, outputRange: [0.5, 1, 0.5], extrapolate: 'clamp' });
+
+  return (
+    <Animated.View style={[{ width: HERO_W, height: HERO_H, borderRadius: borderRadius.xl, overflow: 'hidden' }, { transform: [{ scale }], opacity }]}>
+      {barber.imageUrl ? (
+        <Image source={{ uri: barber.imageUrl }} style={{ width: HERO_W, height: HERO_H }} resizeMode="cover" />
+      ) : (
+        <View style={{ width: HERO_W, height: HERO_H, backgroundColor: colors.barberColors[barber.colorIndex % colors.barberColors.length] }} />
+      )}
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.85)']}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      <View style={styles.heroContent}>
+        <View style={styles.heroTag}>
+          <Text style={styles.heroTagText}>Featured</Text>
+        </View>
+        <Text style={styles.heroName}>{barber.name}</Text>
+        <Text style={styles.heroRole}>{barber.specialty}</Text>
+        <View style={styles.heroMeta}>
+          <Text style={styles.heroStar}>★</Text>
+          <Text style={styles.heroRating}>{barber.rating}</Text>
+          <Text style={styles.heroDot}>·</Text>
+          <Text style={styles.heroReviews}>{barber.reviewCount} reviews</Text>
+        </View>
+        <Text style={styles.heroBio} numberOfLines={2}>{barber.bio}</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+function Dots({ count, scrollX }: { count: number; scrollX: Animated.Value }) {
+  return (
+    <View style={styles.dotsRow}>
+      {Array.from({ length: count }).map((_, i) => {
+        const w = scrollX.interpolate({
+          inputRange: [(i - 1) * HERO_W, i * HERO_W, (i + 1) * HERO_W],
+          outputRange: [DOT_SIZE, DOT_SIZE * 3, DOT_SIZE],
+          extrapolate: 'clamp',
+        });
+        const op = scrollX.interpolate({
+          inputRange: [(i - 1) * HERO_W, i * HERO_W, (i + 1) * HERO_W],
+          outputRange: [0.3, 1, 0.3],
+          extrapolate: 'clamp',
+        });
+        return (
+          <Animated.View
+            key={i}
+            style={[styles.dot, { width: w, opacity: op, backgroundColor: op.interpolate({
+              inputRange: [0.3, 1],
+              outputRange: ['rgba(255,255,255,0.4)', 'rgba(255,255,255,1)'],
+            }) }]}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+export default function BarbersScreen() {
+  const navigation = useNavigation<Nav>();
+  const [loading, setLoading] = useState(true);
+  const loadingFade = useRef(new Animated.Value(1)).current;
+  const contentFade = useRef(new Animated.Value(0)).current;
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(loadingFade, { toValue: 0, duration: 400, useNativeDriver: true }),
+        Animated.timing(contentFade, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ]).start(() => setLoading(false));
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+    { useNativeDriver: false }
+  );
+
+  const renderHero = useCallback(({ item, index }: { item: typeof barbers[0]; index: number }) => (
+    <TouchableOpacity
+      onPress={() => navigation.navigate('BarberDetail', { barberId: item.id })}
+      activeOpacity={1}
+    >
+      <HeroCard barber={item} index={index} scrollX={scrollX} />
+    </TouchableOpacity>
+  ), [navigation, scrollX]);
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <Animated.View style={[styles.header, { opacity: loadingFade.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }]}>
+        <Text style={styles.title}>Our barbers</Text>
+      </Animated.View>
+
+      <View style={{ flex: 1 }}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: loadingFade, pointerEvents: loading ? 'auto' : 'none' }]}>
+          <ShimmerState />
+        </Animated.View>
+
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: contentFade, pointerEvents: loading ? 'none' : 'auto' }]}>
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            <View style={styles.heroSection}>
+              <FlatList
+                ref={flatListRef}
+                data={barbers}
+                keyExtractor={(b) => b.id}
+                renderItem={renderHero}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={HERO_W}
+                decelerationRate="fast"
+                contentContainerStyle={{ paddingHorizontal: CONTENT_PAD }}
+                onScroll={onScroll}
+                scrollEventThrottle={16}
+              />
+              <Dots count={barbers.length} scrollX={scrollX} />
+            </View>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>The team</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.grid}>
+              {barbers.map((barber, i) => (
+                <View key={barber.id} style={styles.gridItem}>
+                  <BarberCard
+                    barber={barber}
+                    index={i}
+                    compact
+                    onPress={() => navigation.navigate('BarberDetail', { barberId: barber.id })}
+                  />
+                </View>
+              ))}
+            </View>
+
+            <View style={{ height: 100 }} />
+          </ScrollView>
+
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => navigation.navigate('Booking', undefined)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.fabText}>Book now</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  header: {
+    paddingHorizontal: CONTENT_PAD, paddingTop: spacing.huge, paddingBottom: spacing.xl,
+  },
+  title: {
+    fontSize: fontSize.xxxl, fontFamily: fonts.display, color: colors.text,
+  },
+  scroll: {
+    paddingBottom: spacing.xxxl,
+  },
+  heroSection: {
+    marginBottom: spacing.xxl,
+  },
+  heroContent: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    padding: spacing.xl + 2,
+  },
+  heroTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: spacing.sm + 4, paddingVertical: 3,
+    borderRadius: borderRadius.full, marginBottom: spacing.sm + 2,
+  },
+  heroTagText: {
+    fontSize: fontSize.xs, color: colors.white, fontFamily: fonts.body, fontWeight: '600',
+    letterSpacing: 1, textTransform: 'uppercase',
+  },
+  heroName: {
+    fontSize: fontSize.xxxl, fontFamily: fonts.display, color: colors.white, marginBottom: 2,
+  },
+  heroRole: {
+    fontSize: fontSize.md, color: 'rgba(255,255,255,0.7)', fontFamily: fonts.bodyLight, marginBottom: spacing.sm,
+  },
+  heroMeta: {
+    flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm,
+  },
+  heroStar: {
+    fontSize: fontSize.md, color: colors.warning, marginRight: 3,
+  },
+  heroRating: {
+    fontSize: fontSize.sm, fontFamily: fonts.body, fontWeight: '600', color: 'rgba(255,255,255,0.9)', marginRight: spacing.xs,
+  },
+  heroDot: {
+    fontSize: fontSize.sm, color: 'rgba(255,255,255,0.5)', marginRight: spacing.xs,
+  },
+  heroReviews: {
+    fontSize: fontSize.sm, color: 'rgba(255,255,255,0.7)', fontFamily: fonts.bodyLight,
+  },
+  heroBio: {
+    fontSize: fontSize.sm, color: 'rgba(255,255,255,0.7)', fontFamily: fonts.bodyLight, lineHeight: 18,
+  },
+  dotsRow: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    marginTop: spacing.lg, gap: spacing.xs,
+  },
+  dot: {
+    height: DOT_SIZE, borderRadius: DOT_SIZE / 2,
+  },
+  divider: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: CONTENT_PAD, marginBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  dividerLine: {
+    flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  dividerText: {
+    fontSize: fontSize.sm, fontFamily: fonts.body, fontWeight: '600',
+    color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1.5,
+  },
+  grid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    paddingHorizontal: CONTENT_PAD - spacing.xs / 2,
+  },
+  gridItem: { width: '50%' },
+  fab: {
+    position: 'absolute', bottom: spacing.xxl, left: CONTENT_PAD, right: CONTENT_PAD,
+    alignItems: 'center',
+  },
+  fabText: {
+    fontSize: fontSize.md, fontFamily: fonts.body, fontWeight: '600',
+    color: colors.onAccent,
+    backgroundColor: colors.accent, paddingHorizontal: spacing.xxxl + 4,
+    paddingVertical: spacing.md + 2,
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+    shadowColor: '#fff', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
+  },
+});

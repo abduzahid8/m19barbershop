@@ -6,14 +6,14 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#EAF0F8",
+    "backgroundColor": "#000000",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "uz.m19barbershop.app"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#EAF0F8",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "package": "uz.m19barbershop.app"
@@ -26,7 +26,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#EAF0F8",
+    "backgroundColor": "#FFFFFF",
           "resizeMode": "contain"
         }
       ]
