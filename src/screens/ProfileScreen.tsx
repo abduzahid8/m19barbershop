@@ -5,17 +5,20 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 import { useApp } from '../state/AppContext';
-import { formatDate, formatPrice, barbers, shopInfo } from '../data';
+import { formatDate, timeAgo, shopInfo } from '../data';
+import { useBarbers } from '../hooks/useData';
 import { colors, spacing, fontSize, borderRadius, fonts, cardShadow } from '../theme';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
-  const { upcoming, history, shopReviews, addShopReview } = useApp();
+  const { upcoming, history, shopReviews, addShopReview, totalVisits, loyaltyPoints } = useApp();
+  const { data: barbers } = useBarbers();
   const navigation = useNavigation<Nav>();
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
+  const [barbersExpanded, setBarbersExpanded] = useState(false);
   const [reviewFormVisible, setReviewFormVisible] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
@@ -25,12 +28,9 @@ export default function ProfileScreen() {
     Animated.timing(fadeIn, { toValue: 1, duration: 400, useNativeDriver: true }).start();
   }, []);
 
-  const totalSpent = history.reduce((sum, a) => sum + 120000, 0);
-  const totalVisits = history.length;
-  const loyaltyPoints = totalVisits * 10;
+  const lastVisit = history.length > 0 ? history.reduce((latest, a) => a.date > latest.date ? a : latest) : null;
   const nextMilestone = 5;
   const progress = Math.min(totalVisits / nextMilestone, 1);
-  const favoriteBarber = barbers[0];
   const avgRating = shopReviews.length
     ? (shopReviews.reduce((s, r) => s + r.rating, 0) / shopReviews.length).toFixed(1)
     : '0.0';
@@ -168,7 +168,9 @@ export default function ProfileScreen() {
                   {totalVisits} visit{totalVisits !== 1 ? 's' : ''}
                 </Text>
                 <Text style={styles.loyaltyStatDot}>·</Text>
-                <Text style={styles.loyaltyStat}>{formatPrice(totalSpent)} spent</Text>
+                <Text style={styles.loyaltyStat}>
+                  Last visit {lastVisit ? timeAgo(lastVisit.date) : 'N/A'}
+                </Text>
               </View>
             </View>
           </View>
@@ -231,7 +233,7 @@ export default function ProfileScreen() {
                         </Text>
                       </View>
                     </View>
-                    <Text style={styles.historyPrice}>{formatPrice(120000)}</Text>
+                    <Text style={styles.historyPrice}>{timeAgo(a.date)}</Text>
                   </View>
                 ))}
               </View>
@@ -239,25 +241,39 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Favorite barber</Text>
             <TouchableOpacity
-              style={[styles.favCard, cardShadow]}
-              onPress={() => navigation.navigate('BarberDetail', { barberId: favoriteBarber.id })}
+              style={styles.sectionHeader}
+              onPress={() => setBarbersExpanded(!barbersExpanded)}
               activeOpacity={0.7}
             >
-              {favoriteBarber.imageUrl ? (
-                <Image source={{ uri: favoriteBarber.imageUrl }} style={styles.favAvatar} />
-              ) : (
-                <View style={[styles.favAvatar, { backgroundColor: colors.barberColors[favoriteBarber.colorIndex], alignItems: 'center', justifyContent: 'center' }]}>
-                  <Text style={styles.favInitials}>{favoriteBarber.name.slice(0, 2).toUpperCase()}</Text>
-                </View>
-              )}
-              <View style={styles.favInfo}>
-                <Text style={styles.favName}>{favoriteBarber.name}</Text>
-                <Text style={styles.favSpecialty}>{favoriteBarber.specialty}</Text>
-              </View>
-              <Feather name="chevron-right" size={20} color={colors.cardTextTertiary} />
+              <Text style={styles.sectionLabel}>Barbers ({barbers.length})</Text>
+              <Feather
+                name={barbersExpanded ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={colors.textSecondary}
+              />
             </TouchableOpacity>
+            {barbersExpanded && barbers.map((b) => (
+              <TouchableOpacity
+                key={b.id}
+                style={[styles.favCard, cardShadow, { marginBottom: spacing.sm }]}
+                onPress={() => navigation.navigate('BarberDetail', { barberId: b.id })}
+                activeOpacity={0.7}
+              >
+                {b.imageUrl ? (
+                  <Image source={{ uri: b.imageUrl }} style={styles.favAvatar} />
+                ) : (
+                  <View style={[styles.favAvatar, { backgroundColor: colors.barberColors[b.colorIndex], alignItems: 'center', justifyContent: 'center' }]}>
+                    <Text style={styles.favInitials}>{b.name.slice(0, 2).toUpperCase()}</Text>
+                  </View>
+                )}
+                <View style={styles.favInfo}>
+                  <Text style={styles.favName}>{b.name}</Text>
+                  <Text style={styles.favSpecialty}>{b.specialty}</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color={colors.cardTextTertiary} />
+              </TouchableOpacity>
+            ))}
           </View>
 
           <TouchableOpacity
@@ -354,7 +370,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.huge, fontFamily: fonts.display, color: colors.cardText, marginRight: spacing.sm,
   },
   loyaltySub: {
-    fontSize: fontSize.md, color: colors.cardTextSecondary, fontFamily: fonts.bodyLight,
+    fontSize: fontSize.md, color: colors.cardText, fontFamily: fonts.bodyLight,
   },
   progressWrap: { marginBottom: spacing.md },
   progressBg: {
@@ -365,16 +381,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent, borderRadius: 2, minWidth: 4,
   },
   progressText: {
-    fontSize: fontSize.xs, color: colors.cardTextTertiary, fontFamily: fonts.bodyLight,
+    fontSize: fontSize.xs, color: colors.cardText, fontFamily: fonts.bodyLight,
   },
   loyaltyStats: {
     flexDirection: 'row', alignItems: 'center',
   },
   loyaltyStat: {
-    fontSize: fontSize.sm, color: colors.cardTextTertiary, fontFamily: fonts.bodyLight,
+    fontSize: fontSize.sm, color: colors.cardText, fontFamily: fonts.bodyLight,
   },
   loyaltyStatDot: {
-    fontSize: fontSize.sm, color: colors.cardTextTertiary, marginHorizontal: spacing.sm,
+    fontSize: fontSize.sm, color: colors.cardText, marginHorizontal: spacing.sm,
   },
   favCard: {
     flexDirection: 'row', alignItems: 'center',
@@ -483,7 +499,7 @@ const styles = StyleSheet.create({
   },
   settingsBtn: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.lg,
-    borderTopWidth: 1, borderTopColor: colors.border,
+    marginTop: spacing.xxl,
   },
   settingsText: {
     flex: 1, fontSize: fontSize.md, fontFamily: fonts.body, color: colors.text, marginLeft: spacing.md,

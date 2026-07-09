@@ -4,10 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { barbers } from '../data';
+import type { Barber } from '../data';
 import { colors, spacing, fontSize, fonts, borderRadius, cardShadow } from '../theme';
 import BarberCard from '../components/BarberCard';
 import Shimmer from '../components/Shimmer';
+import { useBarbers } from '../hooks/useData';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -42,7 +43,13 @@ function ShimmerState() {
   );
 }
 
-function HeroCard({ barber, index, scrollX }: { barber: typeof barbers[0]; index: number; scrollX: Animated.Value }) {
+function truncateText(text: string, maxWords: number) {
+  const words = text.split(' ');
+  if (words.length <= maxWords) return text;
+  return words.slice(0, maxWords).join(' ') + '...';
+}
+
+function HeroCard({ barber, index, scrollX }: { barber: Barber; index: number; scrollX: Animated.Value }) {
   const inputRange = [(index - 1) * HERO_W, index * HERO_W, (index + 1) * HERO_W];
   const scale = scrollX.interpolate({ inputRange, outputRange: [0.88, 1, 0.88], extrapolate: 'clamp' });
   const opacity = scrollX.interpolate({ inputRange, outputRange: [0.5, 1, 0.5], extrapolate: 'clamp' });
@@ -60,9 +67,6 @@ function HeroCard({ barber, index, scrollX }: { barber: typeof barbers[0]; index
         pointerEvents="none"
       />
       <View style={styles.heroContent}>
-        <View style={styles.heroTag}>
-          <Text style={styles.heroTagText}>Featured</Text>
-        </View>
         <Text style={styles.heroName}>{barber.name}</Text>
         <Text style={styles.heroRole}>{barber.specialty}</Text>
         <View style={styles.heroMeta}>
@@ -71,7 +75,7 @@ function HeroCard({ barber, index, scrollX }: { barber: typeof barbers[0]; index
           <Text style={styles.heroDot}>·</Text>
           <Text style={styles.heroReviews}>{barber.reviewCount} reviews</Text>
         </View>
-        <Text style={styles.heroBio} numberOfLines={2}>{barber.bio}</Text>
+        <Text style={styles.heroBio} numberOfLines={2}>{truncateText(barber.bio, 8)}</Text>
       </View>
     </Animated.View>
   );
@@ -107,6 +111,7 @@ function Dots({ count, scrollX }: { count: number; scrollX: Animated.Value }) {
 
 export default function BarbersScreen() {
   const navigation = useNavigation<Nav>();
+  const { data: barbers, loading: dataLoading } = useBarbers();
   const [loading, setLoading] = useState(true);
   const loadingFade = useRef(new Animated.Value(1)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
@@ -114,21 +119,22 @@ export default function BarbersScreen() {
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
+    if (dataLoading) return;
     const timer = setTimeout(() => {
       Animated.parallel([
         Animated.timing(loadingFade, { toValue: 0, duration: 400, useNativeDriver: true }),
         Animated.timing(contentFade, { toValue: 1, duration: 600, useNativeDriver: true }),
       ]).start(() => setLoading(false));
-    }, 800);
+    }, 400);
     return () => clearTimeout(timer);
-  }, []);
+  }, [dataLoading]);
 
   const onScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
     { useNativeDriver: false }
   );
 
-  const renderHero = useCallback(({ item, index }: { item: typeof barbers[0]; index: number }) => (
+  const renderHero = useCallback(({ item, index }: { item: Barber; index: number }) => (
     <TouchableOpacity
       onPress={() => navigation.navigate('BarberDetail', { barberId: item.id })}
       activeOpacity={1}
@@ -168,6 +174,14 @@ export default function BarbersScreen() {
               <Dots count={barbers.length} scrollX={scrollX} />
             </View>
 
+            <TouchableOpacity
+              style={styles.inlineBook}
+              onPress={() => navigation.navigate('Booking', undefined)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.inlineBookText}>Book now</Text>
+            </TouchableOpacity>
+
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>The team</Text>
@@ -187,16 +201,8 @@ export default function BarbersScreen() {
               ))}
             </View>
 
-            <View style={{ height: 100 }} />
+            <View style={{ height: spacing.xxl }} />
           </ScrollView>
-
-          <TouchableOpacity
-            style={styles.fab}
-            onPress={() => navigation.navigate('Booking', undefined)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.fabText}>Book now</Text>
-          </TouchableOpacity>
         </Animated.View>
       </View>
     </SafeAreaView>
@@ -221,21 +227,11 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: spacing.xl + 2,
   },
-  heroTag: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: spacing.sm + 4, paddingVertical: 3,
-    borderRadius: borderRadius.full, marginBottom: spacing.sm + 2,
-  },
-  heroTagText: {
-    fontSize: fontSize.xs, color: colors.white, fontFamily: fonts.body, fontWeight: '600',
-    letterSpacing: 1, textTransform: 'uppercase',
-  },
   heroName: {
     fontSize: fontSize.xxxl, fontFamily: fonts.display, color: colors.white, marginBottom: 2,
   },
   heroRole: {
-    fontSize: fontSize.md, color: 'rgba(255,255,255,0.7)', fontFamily: fonts.bodyLight, marginBottom: spacing.sm,
+    fontSize: fontSize.md, color: 'rgba(255,255,255,0.9)', fontFamily: fonts.bodyLight, marginBottom: spacing.sm,
   },
   heroMeta: {
     flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm,
@@ -244,16 +240,16 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md, color: colors.warning, marginRight: 3,
   },
   heroRating: {
-    fontSize: fontSize.sm, fontFamily: fonts.body, fontWeight: '600', color: 'rgba(255,255,255,0.9)', marginRight: spacing.xs,
+    fontSize: fontSize.sm, fontFamily: fonts.body, fontWeight: '600', color: colors.white, marginRight: spacing.xs,
   },
   heroDot: {
     fontSize: fontSize.sm, color: 'rgba(255,255,255,0.5)', marginRight: spacing.xs,
   },
   heroReviews: {
-    fontSize: fontSize.sm, color: 'rgba(255,255,255,0.7)', fontFamily: fonts.bodyLight,
+    fontSize: fontSize.sm, color: 'rgba(255,255,255,0.9)', fontFamily: fonts.bodyLight,
   },
   heroBio: {
-    fontSize: fontSize.sm, color: 'rgba(255,255,255,0.7)', fontFamily: fonts.bodyLight, lineHeight: 18,
+    fontSize: fontSize.sm, color: 'rgba(255,255,255,0.9)', fontFamily: fonts.bodyLight, lineHeight: 18,
   },
   dotsRow: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
@@ -279,11 +275,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: CONTENT_PAD - spacing.xs / 2,
   },
   gridItem: { width: '50%' },
-  fab: {
-    position: 'absolute', bottom: spacing.xxl, left: CONTENT_PAD, right: CONTENT_PAD,
+  inlineBook: {
     alignItems: 'center',
+    paddingHorizontal: CONTENT_PAD,
+    marginBottom: spacing.xxl,
   },
-  fabText: {
+  inlineBookText: {
     fontSize: fontSize.md, fontFamily: fonts.body, fontWeight: '600',
     color: colors.onAccent,
     backgroundColor: colors.accent, paddingHorizontal: spacing.xxxl + 4,

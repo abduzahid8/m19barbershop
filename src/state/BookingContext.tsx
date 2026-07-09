@@ -1,5 +1,7 @@
 import { createContext, useContext, useReducer, ReactNode, useCallback } from 'react';
 import { Service, Barber } from '../data';
+import { useAuth } from '../contexts/AuthContext';
+import * as api from '../services/api';
 
 interface BookingState {
   selectedServices: Service[];
@@ -8,6 +10,8 @@ interface BookingState {
   selectedDate: string | null;
   selectedTime: string | null;
   currentStep: number;
+  submitting: boolean;
+  submitError: string | null;
 }
 
 type BookingAction =
@@ -19,6 +23,8 @@ type BookingAction =
   | { type: 'SELECT_TIME'; time: string }
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
+  | { type: 'SET_SUBMITTING'; submitting: boolean }
+  | { type: 'SET_SUBMIT_ERROR'; error: string | null }
   | { type: 'RESET' };
 
 const initialState: BookingState = {
@@ -28,6 +34,8 @@ const initialState: BookingState = {
   selectedDate: null,
   selectedTime: null,
   currentStep: 1,
+  submitting: false,
+  submitError: null,
 };
 
 function bookingReducer(state: BookingState, action: BookingAction): BookingState {
@@ -59,6 +67,10 @@ function bookingReducer(state: BookingState, action: BookingAction): BookingStat
       return { ...state, currentStep: state.currentStep + 1 };
     case 'PREV_STEP':
       return { ...state, currentStep: Math.max(1, state.currentStep - 1) };
+    case 'SET_SUBMITTING':
+      return { ...state, submitting: action.submitting };
+    case 'SET_SUBMIT_ERROR':
+      return { ...state, submitError: action.error };
     case 'RESET':
       return { ...initialState };
     default:
@@ -75,6 +87,7 @@ interface BookingContextValue {
   selectTime: (time: string) => void;
   nextStep: () => void;
   prevStep: () => void;
+  submitBooking: () => Promise<string | null>;
   reset: () => void;
 }
 
@@ -103,6 +116,14 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const prevStep = useCallback(() => dispatch({ type: 'PREV_STEP' }), []);
   const reset = useCallback(() => dispatch({ type: 'RESET' }), []);
 
+  const submitBooking = useCallback(async (): Promise<string | null> => {
+    dispatch({ type: 'SET_SUBMITTING', submitting: true });
+    dispatch({ type: 'SET_SUBMIT_ERROR', error: null });
+    return null;
+  }, []);
+
+  // The actual submission is handled in the screen via addAppointment from AppContext
+
   return (
     <BookingContext.Provider
       value={{
@@ -114,6 +135,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         selectTime,
         nextStep,
         prevStep,
+        submitBooking,
         reset,
       }}
     >

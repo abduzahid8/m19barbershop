@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { AuthProvider } from './src/contexts/AuthContext';
 import { AppProvider } from './src/state/AppContext';
 import { BookingProvider } from './src/state/BookingContext';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -29,6 +30,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      <AuthProvider>
       <AppProvider>
         <BookingProvider>
           <NavigationContainer>
@@ -39,6 +41,7 @@ export default function App() {
           </NavigationContainer>
         </BookingProvider>
       </AppProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

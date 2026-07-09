@@ -1,97 +1,69 @@
-import { View, Text, ScrollView, ImageBackground, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { barbers, services, shopInfo } from '../data';
-import { useApp } from '../state/AppContext';
-import { colors, spacing, fontSize, fonts, borderRadius, cardShadow } from '../theme';
+import { useBarbers, useServices } from '../hooks/useData';
+import { colors, spacing, fontSize, fonts } from '../theme';
 import Button from '../components/Button';
-import AppointmentCard from '../components/AppointmentCard';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const HERO_IMG = require('../../logo-5CRrD9HV.png');
-
-function InfoCard({ icon, label, value, onPress }: {
-  icon: string; label: string; value: string; onPress?: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      style={[styles.infoCard, cardShadow]}
-      activeOpacity={onPress ? 0.7 : 1}
-      onPress={onPress}
-      disabled={!onPress}
-    >
-      <Feather name={icon as any} size={18} color={colors.cardTextSecondary} />
-      <View style={styles.infoTextWrap}>
-        <Text style={styles.infoLabel}>{label}</Text>
-        <Text style={styles.infoValue}>{value}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 export default function HomeScreen() {
-  const { upcoming } = useApp();
   const navigation = useNavigation<Nav>();
+  const { data: barbers } = useBarbers();
+  const { data: services } = useServices();
+  const player = useVideoPlayer(require('../../123.mp4'), (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <ImageBackground
-          source={HERO_IMG}
-          style={styles.hero}
-          resizeMode="cover"
-        >
+        <View style={styles.hero}>
+          <VideoView
+            player={player}
+            style={styles.video}
+            contentFit="cover"
+            nativeControls={false}
+          />
           <View style={styles.heroOverlay} />
           <View style={styles.heroContent}>
-            <Text style={styles.logo}>M19</Text>
-            <Text style={styles.subtitle}>Barbershop</Text>
-            <View style={styles.heroLine} />
-            <View style={styles.stats}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNum}>{barbers.length}</Text>
-                <Text style={styles.statLabel}>Barbers</Text>
-              </View>
-              <View style={styles.statDot} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNum}>{services.length}</Text>
-                <Text style={styles.statLabel}>Services</Text>
-              </View>
-              <View style={styles.statDot} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNum}>8+</Text>
-                <Text style={styles.statLabel}>Years</Text>
+            <View style={styles.spacerTop} />
+            <View>
+              <Text style={styles.logo}>M19</Text>
+              <Text style={styles.subtitle}>Barbershop</Text>
+              <View style={styles.heroLine} />
+              <View style={styles.stats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNum}>{barbers.length}</Text>
+                  <Text style={styles.statLabel}>Barbers</Text>
+                </View>
+                <View style={styles.statDot} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNum}>{services.length}</Text>
+                  <Text style={styles.statLabel}>Services</Text>
+                </View>
+                <View style={styles.statDot} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNum}>8+</Text>
+                  <Text style={styles.statLabel}>Years</Text>
+                </View>
               </View>
             </View>
+            <View style={styles.spacerBottom} />
           </View>
-        </ImageBackground>
-
-        <View style={styles.infoRow}>
-          <InfoCard
-            icon="clock"
-            label="Working hours"
-            value={shopInfo.hours}
-          />
-          <InfoCard
-            icon="map-pin"
-            label="Location"
-            value={shopInfo.address}
-            onPress={() => {}}
-          />
+          <View style={styles.ctaWrapper}>
+            <Button
+              title="Book now"
+              onPress={() => navigation.navigate('Booking', { preselectedBarber: undefined })}
+              fullWidth
+              style={styles.cta}
+            />
+          </View>
         </View>
-
-        {upcoming && <AppointmentCard appointment={upcoming} />}
-
-        <Button
-          title="Book now"
-          onPress={() => navigation.navigate('Booking', { preselectedBarber: undefined })}
-          fullWidth
-          style={styles.cta}
-        />
-      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -101,22 +73,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scroll: {
-    paddingHorizontal: spacing.xxl,
-    paddingBottom: spacing.xxxl,
-  },
   hero: {
-    width: '100%',
-    height: 340,
-    justifyContent: 'flex-end',
+    flex: 1,
+    overflow: 'hidden',
+  },
+  video: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
   },
   heroOverlay: {
-    ...StyleSheet.absoluteFill,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   heroContent: {
+    flex: 1,
     paddingHorizontal: spacing.xxl,
-    paddingBottom: spacing.xxl,
+  },
+  spacerTop: {
+    flex: 5,
+  },
+  spacerBottom: {
+    flex: 6,
   },
   logo: {
     fontSize: fontSize.massive,
@@ -167,37 +143,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.3)',
     marginHorizontal: spacing.lg,
   },
-  infoRow: {
-    flexDirection: 'row',
+  ctaWrapper: {
+    paddingHorizontal: spacing.xxl,
+    paddingBottom: 140,
     paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
-    gap: spacing.md,
   },
-  infoCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  infoTextWrap: {
-    gap: 2,
-  },
-  infoLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.body,
-    fontWeight: '600',
-    color: colors.cardTextSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  infoValue: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.bodyLight,
-    color: colors.cardTextTertiary,
-    lineHeight: 16,
-  },
-  cta: {
-    marginTop: spacing.md,
-  },
+  cta: {},
 });

@@ -1,9 +1,8 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Feather } from '@expo/vector-icons';
 import { Barber } from '../data';
-import { colors, fontSize, fonts } from '../theme';
 
+import TabBar from '../components/TabBar';
 import HomeScreen from '../screens/HomeScreen';
 import BarbersScreen from '../screens/BarbersScreen';
 import BarberDetailScreen from '../screens/BarberDetailScreen';
@@ -30,47 +29,14 @@ const Tab = createBottomTabNavigator<TabParamList>();
 function MainTabs() {
   return (
     <Tab.Navigator
+      tabBar={(props) => <TabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarLabelStyle: {
-          fontSize: fontSize.xs,
-          fontFamily: fonts.body,
-          fontWeight: '500',
-          marginTop: -2,
-        },
-        tabBarStyle: {
-          backgroundColor: colors.background,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
-          paddingBottom: 10,
-          paddingTop: 8,
-          height: 58,
-        },
       }}
     >
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <Feather name="home" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Barbers"
-        component={BarbersScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <Feather name="users" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <Feather name="user" size={size} color={color} />,
-        }}
-      />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Home' }} />
+      <Tab.Screen name="Barbers" component={BarbersScreen} options={{ tabBarLabel: 'Barbers' }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
 }
@@ -82,12 +48,11 @@ export default function AppNavigator() {
       <Stack.Screen
         name="Booking"
         component={BookingScreen}
-        options={{ presentation: 'modal' }}
+        options={{ presentation: 'fullScreenModal' }}
       />
       <Stack.Screen
         name="BarberDetail"
         component={BarberDetailScreen}
-        options={{ presentation: 'modal' }}
       />
       <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>

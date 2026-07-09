@@ -3,7 +3,6 @@ import { TouchableOpacity, Text, View, StyleSheet, Animated, Image, Dimensions }
 import { LinearGradient } from 'expo-linear-gradient';
 import { Barber } from '../data';
 import { colors, spacing, fontSize, borderRadius, fonts, cardShadow } from '../theme';
-import Shimmer from './Shimmer';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_IMG_HEIGHT = 180;
@@ -45,7 +44,6 @@ export default function BarberCard({ barber, onPress, compact = false, selected,
   const initials = barber.name.slice(0, 2).toUpperCase();
   const bgColor = colors.barberColors[barber.colorIndex % colors.barberColors.length];
   const imgH = compact ? COMPACT_IMG_H : CARD_IMG_HEIGHT;
-  const shimmerW = compact ? CARD_W : cardDefaultWidth();
 
   const imageContent = barber.imageUrl ? (
     <Animated.View style={{ opacity: imgLoaded }}>
@@ -78,41 +76,35 @@ export default function BarberCard({ barber, onPress, compact = false, selected,
           compact && cardShadow,
           { transform: [{ scale: pressScale }] },
         ]}>
-          <Shimmer width={shimmerW} height={imgH} borderRadius={compact ? borderRadius.md : borderRadius.lg}>
-            <View style={{ width: '100%', height: imgH, overflow: 'hidden' }}>
-              {imageContent}
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.75)']}
-                style={StyleSheet.absoluteFill}
-                pointerEvents="none"
-              />
-              <View style={compact ? styles.overlayCompact : styles.overlayFull}>
-                <Text style={compact ? styles.nameCompact : styles.nameFull} numberOfLines={1}>
-                  {barber.name}
-                </Text>
-                <View style={styles.metaRow}>
-                  <Text style={styles.star}>★</Text>
-                  <Text style={styles.ratingText}>{barber.rating}</Text>
-                  {!compact && (
-                    <Text style={styles.specialtyText}> · {barber.specialty}</Text>
-                  )}
-                </View>
+          <View style={{ width: '100%', height: imgH, overflow: 'hidden', borderTopLeftRadius: compact ? borderRadius.md : borderRadius.lg, borderTopRightRadius: compact ? borderRadius.md : borderRadius.lg }}>
+            {imageContent}
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.85)']}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+            <View style={compact ? styles.overlayCompact : styles.overlayFull}>
+              <Text style={compact ? styles.nameCompact : styles.nameFull} numberOfLines={1}>
+                {barber.name}
+              </Text>
+              <View style={styles.metaRow}>
+                <Text style={styles.star}>★</Text>
+                <Text style={styles.ratingText}>{barber.rating}</Text>
+                {!compact && (
+                  <Text style={styles.specialtyText}> · {barber.specialty}</Text>
+                )}
               </View>
-              {!barber.available && (
-                <View style={styles.unavailableBadge}>
-                  <Text style={styles.unavailableBadgeText}>Unavailable</Text>
-                </View>
-              )}
             </View>
-          </Shimmer>
+            {!barber.available && (
+              <View style={styles.unavailableBadge}>
+                <Text style={styles.unavailableBadgeText}>Unavailable</Text>
+              </View>
+            )}
+          </View>
         </Animated.View>
       </TouchableOpacity>
     </Animated.View>
   );
-}
-
-function cardDefaultWidth() {
-  return SCREEN_W - spacing.xxl * 2;
 }
 
 const styles = StyleSheet.create({
@@ -158,10 +150,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm, color: colors.warning, marginRight: 3,
   },
   ratingText: {
-    fontSize: fontSize.sm, fontWeight: '600', color: 'rgba(255,255,255,0.9)', fontFamily: fonts.body,
+    fontSize: fontSize.sm, fontWeight: '600', color: colors.white, fontFamily: fonts.body,
   },
   specialtyText: {
-    fontSize: fontSize.sm, color: 'rgba(255,255,255,0.7)', fontFamily: fonts.bodyLight,
+    fontSize: fontSize.sm, color: 'rgba(255,255,255,0.9)', fontFamily: fonts.bodyLight,
   },
   unavailableBadge: {
     position: 'absolute', top: spacing.sm, right: spacing.sm,

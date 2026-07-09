@@ -6,12 +6,14 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { services, barbers, getTimeSlots, formatDate, formatPrice, getDayNames, Service } from '../data';
+import { getTimeSlots, formatDate, formatPrice, getDayNames, Service, Barber } from '../data';
 import { colors, spacing, fontSize, borderRadius, fonts, cardShadow } from '../theme';
 import { useBooking } from '../state/BookingContext';
 import { useApp } from '../state/AppContext';
+import { useBarbers, useServices } from '../hooks/useData';
 import Button from '../components/Button';
 import ServiceCard from '../components/ServiceCard';
+import PremiumCard from '../components/PremiumCard';
 import TimeSlot from '../components/TimeSlot';
 import DayPicker from '../components/DayPicker';
 import CategoryChip from '../components/CategoryChip';
@@ -25,12 +27,12 @@ const CONTENT_PAD = spacing.xxl;
 const CAROUSEL_W = SCREEN_W - CONTENT_PAD * 2;
 const CAROUSEL_H = 280;
 const PROGRESS_W = SCREEN_W - CONTENT_PAD * 2;
-const SLOTS = getTimeSlots();
-const CATEGORIES = ['All', 'Hair', 'Beard', 'Shave'];
+const CATEGORIES = ['All', 'Premium', 'Hair', 'Beard', 'Shave'];
 
 
 function getServiceCategory(service: Service): string {
   const name = service.name.toLowerCase();
+  if (name.includes('premium') || name.includes('vip') || name.includes('private')) return 'Premium';
   if (name.includes('beard') || name.includes('trim')) return 'Beard';
   if (name.includes('shave') || name.includes('wash')) return 'Shave';
   if (name.includes('kids') || name.includes('haircut')) return 'Hair';
@@ -149,31 +151,19 @@ function SpotlightBeam({ active }: { active: boolean }) {
 }
 
 function AvatarConstellation({ barbers: bbs, selected, onSelect, onCarouselScroll }: {
-  barbers: typeof barbers; selected: typeof barbers[0] | null;
-  onSelect: (b: typeof barbers[0]) => void;
+  barbers: Barber[]; selected: Barber | null;
+  onSelect: (b: Barber) => void;
   onCarouselScroll: (idx: number) => void;
 }) {
-  const CONST_W = SCREEN_W - CONTENT_PAD * 2;
-  const AVATAR_SIZE = 38;
-  const total = bbs.length;
-  const spacing_A = (CONST_W - AVATAR_SIZE) / (total - 1);
+  const COL_WIDTH = (SCREEN_W - CONTENT_PAD * 2) / 3;
 
   return (
     <View style={styles.constellation}>
       {bbs.map((b, i) => {
         const isSel = selected?.id === b.id;
-        const x = i * spacing_A;
-        const yOff = i % 2 === 0 ? 0 : 8;
         return (
           <TouchableOpacity key={b.id} onPress={() => { onSelect(b); onCarouselScroll(i); }} activeOpacity={0.8}
-            style={[styles.constDot, { left: x, top: yOff }]}>
-            {i < total - 1 && (
-              <View style={[styles.constLine, {
-                width: spacing_A,
-                top: AVATAR_SIZE / 2 - 0.5,
-                backgroundColor: isSel ? colors.accent : colors.border,
-              }]} />
-            )}
+            style={[styles.constDot, { width: COL_WIDTH }]}>
             <View style={[styles.constAvatar, isSel && styles.constAvatarActive]}>
               {b.imageUrl ? (
                 <Image source={{ uri: b.imageUrl }} style={styles.constImg} />
@@ -191,12 +181,12 @@ function AvatarConstellation({ barbers: bbs, selected, onSelect, onCarouselScrol
 }
 
 function BarberCardStack({ barbers: bbs, selected, onSelect }: {
-  barbers: typeof barbers; selected: typeof barbers[0] | null; onSelect: (b: typeof barbers[0]) => void;
+  barbers: Barber[]; selected: Barber | null; onSelect: (b: Barber) => void;
 }) {
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatRef = useRef<FlatList>(null);
 
-  const renderItem = useCallback(({ item, index }: { item: typeof barbers[0]; index: number }) => {
+  const renderItem = useCallback(({ item, index }: { item: Barber; index: number }) => {
     const input = [(index - 1) * CAROUSEL_W, index * CAROUSEL_W, (index + 1) * CAROUSEL_W];
     const scale = scrollX.interpolate({ inputRange: input, outputRange: [0.85, 1, 0.85], extrapolate: 'clamp' });
     const opacity = scrollX.interpolate({ inputRange: input, outputRange: [0.3, 1, 0.3], extrapolate: 'clamp' });
@@ -212,17 +202,9 @@ function BarberCardStack({ barbers: bbs, selected, onSelect }: {
             <View style={{ width: CAROUSEL_W, height: CAROUSEL_H, backgroundColor: colors.barberColors[item.colorIndex % colors.barberColors.length] }} />
           )}
           <SpotlightBeam active={isSel} />
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={StyleSheet.absoluteFill} pointerEvents="none" />
           <View style={styles.cardOverlay}>
             <Text style={styles.cardName}>{item.name}</Text>
-            <Text style={styles.cardRole}>{item.specialty}</Text>
-            <View style={styles.cardMeta}>
-              <Text style={styles.cardStar}>★</Text>
-              <Text style={styles.cardRating}>{item.rating}</Text>
-              <Text style={styles.cardDot}>·</Text>
-              <Text style={styles.cardReviews}>{item.reviewCount} reviews</Text>
-            </View>
-            <Text style={styles.cardBio} numberOfLines={1}>{item.bio}</Text>
           </View>
           {isSel && (
             <Animated.View style={styles.cardSelTag}>
@@ -293,8 +275,10 @@ function MeterOrb({ count, total }: { count: number; total: number }) {
 export default function BookingScreen() {
   const route = useRoute<Route>();
   const navigation = useNavigation<Nav>();
-  const { state, selectService, selectBarber, selectDate, selectTime, nextStep, prevStep, reset } = useBooking();
+  const { state, selectService, selectBarber, selectDate, selectTime, nextStep, prevStep, reset, submitBooking } = useBooking();
   const { addAppointment } = useApp();
+  const { data: services } = useServices();
+  const { data: barbers } = useBarbers();
   const [activeCat, setActiveCat] = useState('All');
   const [showSparkle, setShowSparkle] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -327,7 +311,18 @@ export default function BookingScreen() {
   const totalPrice = state.selectedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = state.selectedServices.reduce((sum, s) => sum + s.duration, 0);
   const today = getDayNames()[0]?.fullDate;
+  const isPremiumCat = activeCat === 'Premium';
   const filtered = activeCat === 'All' ? services : services.filter((s) => getServiceCategory(s) === activeCat);
+
+  const premiumService: Service = {
+    id: 'premium-private-room',
+    name: 'Private Room Haircut',
+    price: 250000,
+    duration: 60,
+    icon: 'award',
+    description: 'Exclusive premium haircut in a private VIP room',
+    image: undefined,
+  };
 
   const canProceed = () => {
     switch (state.currentStep) {
@@ -338,14 +333,17 @@ export default function BookingScreen() {
     }
   };
 
-  const handleDone = () => {
+  const handleDone = async () => {
     if (!state.selectedBarber || !state.selectedDate || !state.selectedTime) return;
-    addAppointment({
-      barberId: state.selectedBarber.id, barberName: state.selectedBarber.name,
-      serviceNames: state.selectedServices.map((s) => s.name),
-      date: state.selectedDate, time: state.selectedTime, status: 'upcoming',
-    });
-    nextStep();
+    const error = await submitBooking();
+    if (!error) {
+      await addAppointment({
+        barberId: state.selectedBarber.id, barberName: state.selectedBarber.name,
+        serviceNames: state.selectedServices.map((s) => s.name),
+        date: state.selectedDate, time: state.selectedTime, status: 'upcoming',
+      });
+      nextStep();
+    }
   };
 
   const handleClose = () => { reset(); navigation.goBack(); };
@@ -397,11 +395,19 @@ export default function BookingScreen() {
                 </ScrollView>
               </View>
 
-              <View style={styles.serviceGrid}>
-                {filtered.map((s, i) => (
-                  <ServiceCard key={s.id} service={s} index={i} selected={state.selectedServices.some((x) => x.id === s.id)} onPress={() => selectService(s)} />
-                ))}
-              </View>
+              {isPremiumCat ? (
+                <PremiumCard
+                  selected={state.selectedServices.some((x) => x.id === 'premium-private-room')}
+                  onPress={() => selectService(premiumService)}
+                  index={0}
+                />
+              ) : (
+                <View style={styles.serviceGrid}>
+                  {filtered.map((s, i) => (
+                    <ServiceCard key={s.id} service={s} index={i} selected={state.selectedServices.some((x) => x.id === s.id)} onPress={() => selectService(s)} />
+                  ))}
+                </View>
+              )}
 
               {state.selectedServices.length > 0 && (
                 <Animated.View style={[styles.tokenStrip, cardShadow]}>
@@ -430,7 +436,7 @@ export default function BookingScreen() {
 
           {state.currentStep === 2 && (
             <View>
-              <Text style={styles.stepTitle}>Choose your artist</Text>
+              <Text style={styles.stepTitle}>Choose your master</Text>
               <Text style={styles.stepSub}>
                 {route.params?.preselectedBarber ? `Pre-selected: ${route.params.preselectedBarber.name}` : 'Swipe through the deck, then tap to select'}
               </Text>
@@ -456,7 +462,7 @@ export default function BookingScreen() {
                     </View>
                   )}
                   <Text style={[styles.portalText, !state.selectedBarber && styles.portalTextActive]}>
-                    {state.selectedBarber ? 'Deselect' : 'Any available artist'}
+                    {state.selectedBarber ? 'Deselect' : 'Any available master'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -471,7 +477,7 @@ export default function BookingScreen() {
               <DayPicker selected={state.selectedDate || today} onSelect={selectDate} />
 
               <View style={styles.slotList}>
-                {SLOTS.map((slot) => (
+                {getTimeSlots().map((slot) => (
                   <TimeSlot
                     key={slot.time}
                     time={slot.time}
@@ -623,13 +629,6 @@ const styles = StyleSheet.create({
 
   cardOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing.lg },
   cardName: { fontSize: fontSize.xxl, fontFamily: fonts.display, color: colors.white, marginBottom: 1 },
-  cardRole: { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.7)', fontFamily: fonts.bodyLight, marginBottom: spacing.xs },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  cardStar: { fontSize: fontSize.sm, color: colors.warning },
-  cardRating: { fontSize: fontSize.sm, fontFamily: fonts.body, fontWeight: '600', color: 'rgba(255,255,255,0.9)' },
-  cardDot: { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.4)' },
-  cardReviews: { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.7)', fontFamily: fonts.bodyLight },
-  cardBio: { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.5)', fontFamily: fonts.bodyLight, marginTop: spacing.xs },
   cardSelTag: { position: 'absolute', top: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accent, paddingHorizontal: spacing.sm + 2, paddingVertical: 3, borderRadius: borderRadius.full, zIndex: 5 },
   cardSelText: { fontSize: fontSize.xs, color: colors.onAccent, fontFamily: fonts.body, fontWeight: '600' },
   stackSelected: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)' },
@@ -637,14 +636,13 @@ const styles = StyleSheet.create({
 
   beam: { position: 'absolute', top: 0, left: 0, right: 0, height: 40, zIndex: 2 },
 
-  constellation: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.xl, position: 'relative', height: 80 },
-  constDot: { alignItems: 'center', position: 'absolute' },
-  constLine: { position: 'absolute', height: 1, left: 38 },
-  constAvatar: { width: 38, height: 38, borderRadius: 19, borderWidth: 2, borderColor: 'transparent', overflow: 'hidden' },
+  constellation: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.lg },
+  constDot: { alignItems: 'center', marginBottom: spacing.lg },
+  constAvatar: { width: 94, height: 94, borderRadius: 47, borderWidth: 2, borderColor: 'transparent', overflow: 'hidden' },
   constAvatarActive: { borderColor: colors.accent },
-  constImg: { width: 38, height: 38, borderRadius: 19 },
-  constGlow: { position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderRadius: 23, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' },
-  constName: { fontSize: fontSize.xs - 1, fontFamily: fonts.bodyLight, color: colors.textTertiary, marginTop: 2, textAlign: 'center' },
+  constImg: { width: 94, height: 94, borderRadius: 47 },
+  constGlow: { position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderRadius: 51, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' },
+  constName: { fontSize: fontSize.xs - 2, fontFamily: fonts.bodyLight, color: colors.textTertiary, marginTop: 4, textAlign: 'center' },
 
   portalBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,

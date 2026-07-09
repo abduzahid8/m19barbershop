@@ -1,0 +1,10 @@
+appId: uz.m19barbershop.app
+---
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    point: "50%,95%"
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: "Our barbers"
