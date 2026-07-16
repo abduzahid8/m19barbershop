@@ -2,23 +2,22 @@ import { formatPrice, formatDate, timeAgo, getTimeSlots, getDayNames } from '../
 
 describe('Data utility functions', () => {
   describe('formatPrice', () => {
-    it('formats price with UZS suffix', () => {
-      expect(formatPrice(80000)).toContain('UZS');
+    it('formats price with сум suffix', () => {
+      expect(formatPrice(80000)).toContain('сум');
     });
   });
 
   describe('formatDate', () => {
-    it('formats date string', () => {
+    it('formats date string in ru-RU', () => {
       const result = formatDate('2026-07-15');
-      expect(result).toContain('Jul');
       expect(result).toContain('15');
     });
   });
 
   describe('timeAgo', () => {
-    it('returns Today for current date', () => {
+    it('returns Russian Сегодня for current date', () => {
       const today = new Date().toISOString().split('T')[0];
-      expect(timeAgo(today)).toBe('Today');
+      expect(timeAgo(today)).toBe('Сегодня');
     });
   });
 
@@ -39,10 +38,10 @@ describe('Data utility functions', () => {
   });
 
   describe('getDayNames', () => {
-    it('returns 7 days starting from today', () => {
+    it('returns 7 days starting from Сегодня', () => {
       const days = getDayNames();
       expect(days).toHaveLength(7);
-      expect(days[0].day).toBe('Today');
+      expect(days[0].day).toBe('Сегодня');
     });
   });
 });

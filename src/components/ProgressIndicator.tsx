@@ -6,7 +6,7 @@ interface ProgressIndicatorProps {
   current: number;
 }
 
-const STEP_LABELS = ['Service', 'Barber', 'Time', 'Done'];
+const STEP_LABELS = ['Услуга', 'Мастер', 'Время', 'Готово'];
 
 export default function ProgressIndicator({ total, current }: ProgressIndicatorProps) {
   return (

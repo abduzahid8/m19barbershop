@@ -43,7 +43,7 @@ export default function ServiceCard({ service, selected, onPress, index = 0 }: S
   const entranceScale = entrance.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] });
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ width: '50%', padding: spacing.xs / 2 }}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ width: '50%', padding: 5 }}>
       <Animated.View style={{
         opacity: entrance,
         transform: [

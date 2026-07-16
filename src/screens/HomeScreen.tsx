@@ -31,37 +31,45 @@ export default function HomeScreen() {
           />
           <View style={styles.heroOverlay} />
           <View style={styles.heroContent}>
-            <View style={styles.spacerTop} />
-            <View>
-              <Text style={styles.logo}>M19</Text>
-              <Text style={styles.subtitle}>Barbershop</Text>
-              <View style={styles.heroLine} />
-              <View style={styles.stats}>
+            <View style={styles.topSection}>
+              <Text style={styles.logoSmall}>M19</Text>
+              <Text style={styles.subtitleSmall}>Barbershop</Text>
+            </View>
+            <View style={styles.centerSection}>
+              <Text style={styles.discountLine}>
+                НА ПЕРВЫЙ ВИЗИТ{'\n'}
+                <Text style={styles.discountBold}>-20%</Text> <Text style={styles.discountHighlight}>СКИДКА</Text>
+              </Text>
+              <Text style={styles.description}>
+                Один из лучших барбершопов в центре Ташкента с рейтингом 5.0 ⭐
+              </Text>
+            </View>
+            <View style={styles.bottomWrapper}>
+                <View style={styles.stats}>
                 <View style={styles.statItem}>
                   <Text style={styles.statNum}>{barbers.length}</Text>
-                  <Text style={styles.statLabel}>Barbers</Text>
+                  <Text style={styles.statLabel}>Барберы</Text>
                 </View>
                 <View style={styles.statDot} />
                 <View style={styles.statItem}>
                   <Text style={styles.statNum}>{services.length}</Text>
-                  <Text style={styles.statLabel}>Services</Text>
+                  <Text style={styles.statLabel}>Услуги</Text>
                 </View>
                 <View style={styles.statDot} />
                 <View style={styles.statItem}>
                   <Text style={styles.statNum}>8+</Text>
-                  <Text style={styles.statLabel}>Years</Text>
+                  <Text style={styles.statLabel}>Лет</Text>
                 </View>
               </View>
+              <View style={styles.ctaWrapper}>
+                <Button
+                  title="Записаться"
+                  onPress={() => navigation.navigate('Booking', { preselectedBarber: undefined })}
+                  fullWidth
+                  style={styles.cta}
+                />
+              </View>
             </View>
-            <View style={styles.spacerBottom} />
-          </View>
-          <View style={styles.ctaWrapper}>
-            <Button
-              title="Book now"
-              onPress={() => navigation.navigate('Booking', { preselectedBarber: undefined })}
-              fullWidth
-              style={styles.cta}
-            />
           </View>
         </View>
     </SafeAreaView>
@@ -88,39 +96,67 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.xxl,
   },
-  spacerTop: {
-    flex: 5,
+  topSection: {
+    paddingTop: spacing.xl,
+    alignItems: 'center',
+    paddingBottom: spacing.sm,
   },
-  spacerBottom: {
-    flex: 6,
-  },
-  logo: {
-    fontSize: fontSize.massive,
+  logoSmall: {
+    fontSize: fontSize.xxl,
     fontFamily: fonts.display,
     color: colors.white,
-    letterSpacing: -1.5,
-    lineHeight: fontSize.massive + 4,
+    letterSpacing: -0.5,
   },
-  subtitle: {
-    fontSize: fontSize.lg,
+  subtitleSmall: {
+    fontSize: fontSize.sm,
     fontFamily: fonts.bodyLight,
     color: 'rgba(255,255,255,0.7)',
-    marginTop: -6,
+    marginTop: -2,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
-  heroLine: {
-    width: 40,
-    height: 2,
+centerSection: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottomWrapper: {
+    paddingBottom: 100,
+  },
+  discountLine: {
+    fontSize: fontSize.xxl,
+    fontFamily: fonts.bodyLight,
+    color: 'rgba(255,255,255,0.8)',
+    letterSpacing: 1,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  discountBold: {
+    fontSize: fontSize.xxl,
+    fontFamily: fonts.display,
+    color: colors.white,
+    letterSpacing: 1,
+  },
+  discountHighlight: {
+    fontSize: fontSize.xxl,
+    fontFamily: fonts.display,
+    color: colors.black,
     backgroundColor: colors.white,
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
-    borderRadius: 1,
-    opacity: 0.6,
+    letterSpacing: 1,
+  },
+  description: {
+    fontSize: fontSize.md,
+    fontFamily: fonts.bodyLight,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    lineHeight: fontSize.md + 6,
   },
   stats: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   statItem: {
     alignItems: 'center',
@@ -144,9 +180,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.lg,
   },
   ctaWrapper: {
-    paddingHorizontal: spacing.xxl,
-    paddingBottom: 140,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.lg,
   },
   cta: {},
 });

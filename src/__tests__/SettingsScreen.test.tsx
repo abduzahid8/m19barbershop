@@ -6,21 +6,21 @@ jest.mock('@expo/vector-icons/Feather', () => 'Feather');
 describe('SettingsScreen', () => {
   it('renders title', () => {
     render(<SettingsScreen />);
-    expect(screen.getByText('Settings')).toBeTruthy();
+    expect(screen.getByText('Настройки')).toBeTruthy();
   });
 
   it('renders preferences section', () => {
     render(<SettingsScreen />);
-    expect(screen.getByText('Notifications')).toBeTruthy();
-    expect(screen.getByText('Remind me of appointments')).toBeTruthy();
-    expect(screen.getByText('Language')).toBeTruthy();
-    expect(screen.getByText('English')).toBeTruthy();
+    expect(screen.getByText('Уведомления')).toBeTruthy();
+    expect(screen.getByText('Напоминать о записях')).toBeTruthy();
+    expect(screen.getByText('Язык')).toBeTruthy();
+    expect(screen.getByText('Русский')).toBeTruthy();
   });
 
   it('renders account section with logout', () => {
     render(<SettingsScreen />);
-    expect(screen.getByText('Account')).toBeTruthy();
-    expect(screen.getByText('Log out')).toBeTruthy();
+    expect(screen.getByText('Аккаунт')).toBeTruthy();
+    expect(screen.getByText('Выйти')).toBeTruthy();
   });
 
   it('renders version', () => {

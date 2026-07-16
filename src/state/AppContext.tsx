@@ -2,114 +2,100 @@ import { createContext, useContext, useState, useCallback, useMemo, useEffect, R
 import { Appointment, ShopReview } from '../data';
 import { useAuth } from '../contexts/AuthContext';
 import * as api from '../services/api';
-import type { AppointmentRow, ReviewRow, LoyaltyRow } from '../lib/database.types';
 
 interface AppState {
   appointments: Appointment[];
   upcoming: Appointment | null;
   history: Appointment[];
-  addAppointment: (a: Omit<Appointment, 'id'>) => Promise<void>;
-  cancelAppointment: (id: string) => Promise<void>;
+  addAppointment: (params: {
+    barberId: string;
+    barberName?: string;
+    serviceIds: string[];
+    serviceNames?: string[];
+    datetime: string;
+    duration: number;
+  }) => Promise<string | null>;
+  cancelAppointment: (id: string) => Promise<string | null>;
   userName: string;
+  userEmail: string;
   shopReviews: ShopReview[];
-  addShopReview: (review: { author: string; rating: number; text: string }) => Promise<void>;
-  loyaltyPoints: number;
-  totalVisits: number;
-  loyaltyTier: string;
   loading: boolean;
 }
 
 const AppContext = createContext<AppState | null>(null);
 
-function toAppointment(row: AppointmentRow): Appointment {
-  return {
-    id: row.id,
-    barberId: row.barber_id,
-    barberName: row.barber_name,
-    serviceNames: row.service_names,
-    date: row.date,
-    time: row.time,
-    status: row.status,
-  };
-}
-
-function toShopReview(row: ReviewRow): ShopReview {
-  return {
-    id: row.id,
-    author: row.author,
-    rating: row.rating,
-    text: row.text,
-    date: row.date,
-  };
-}
-
 export function AppProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [shopReviews, setShopReviews] = useState<ShopReview[]>([]);
-  const [loyalty, setLoyalty] = useState<LoyaltyRow | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!user) {
       setAppointments([]);
       setShopReviews([]);
-      setLoyalty(null);
       setLoading(false);
       return;
     }
 
-    const [apptResult, reviewResult, loyaltyResult] = await Promise.all([
-      api.getAppointments(user.id),
+    const [apptResult, reviewResult] = await Promise.all([
+      api.getAppointments(user.email),
       api.getReviews(),
-      api.getLoyalty(user.id),
     ]);
 
-    if (apptResult.data) setAppointments(apptResult.data.map(toAppointment));
-    if (reviewResult.data) setShopReviews(reviewResult.data.map(toShopReview));
-    if (loyaltyResult.data) setLoyalty(loyaltyResult.data);
+    if (apptResult.data) setAppointments(apptResult.data);
+    if (reviewResult.data) setShopReviews(reviewResult.data);
+
     setLoading(false);
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const addAppointment = useCallback(async (draft: Omit<Appointment, 'id'>) => {
-    if (!user) return;
+  const addAppointment = useCallback(async (params: {
+    barberId: string;
+    barberName?: string;
+    serviceIds: string[];
+    serviceNames?: string[];
+    datetime: string;
+    duration: number;
+  }): Promise<string | null> => {
+    if (!user) return 'Not signed in';
     const result = await api.createAppointment({
-      user_id: user.id,
-      barber_id: draft.barberId,
-      barber_name: draft.barberName,
-      service_names: draft.serviceNames,
-      date: draft.date,
-      time: draft.time,
-      status: draft.status,
+      userEmail: user.email,
+      userName: user.name,
+      barberId: params.barberId,
+      serviceIds: params.serviceIds,
+      datetime: params.datetime,
+      duration: params.duration,
     });
-    if (result.data) {
-      setAppointments((prev) => [...prev, toAppointment(result.data!)]);
+    if (result.error) return result.error;
+    const newAppt = result.data;
+    if (newAppt) {
+      const date = params.datetime.split('T')[0];
+      const time = params.datetime.split('T')[1]?.slice(0, 5) || '';
+      setAppointments((prev) => [...prev, {
+        id: newAppt.id,
+        barberId: params.barberId,
+        barberName: params.barberName || '',
+        serviceNames: params.serviceNames || [],
+        date,
+        time,
+        status: 'upcoming' as const,
+      }]);
     }
-  }, [user?.id]);
+    return null;
+  }, [user?.id, user?.email, user?.name]);
 
-  const cancelAppointment = useCallback(async (id: string) => {
+  const cancelAppointment = useCallback(async (id: string): Promise<string | null> => {
     const result = await api.cancelAppointment(id);
-    if (result.data) {
+    if (result.error === null) {
       setAppointments((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status: 'cancelled' } : a))
       );
+      return null;
     }
+    return result.error;
   }, []);
-
-  const addShopReview = useCallback(async (draft: { author: string; rating: number; text: string }) => {
-    if (!user) return;
-    const result = await api.addReview({
-      user_id: user.id,
-      author: draft.author,
-      rating: draft.rating,
-      text: draft.text,
-    });
-    if (result.data) {
-      setShopReviews((prev) => [toShopReview(result.data!), ...prev]);
-    }
-  }, [user?.id]);
 
   const upcoming = useMemo(
     () => appointments.find((a) => a.status === 'upcoming') ?? null,
@@ -125,11 +111,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider
       value={{
         appointments, upcoming, history, addAppointment, cancelAppointment,
-        userName: user?.phone || 'Guest',
-        shopReviews, addShopReview,
-        loyaltyPoints: loyalty?.points || 0,
-        totalVisits: loyalty?.total_visits || 0,
-        loyaltyTier: loyalty?.tier || 'bronze',
+        userName: user?.name || 'Guest',
+        userEmail: user?.email || '',
+        shopReviews,
         loading,
       }}
     >

@@ -10,11 +10,6 @@ interface TimeSlotProps {
 }
 
 export default function TimeSlot({ time, available, selected, onPress }: TimeSlotProps) {
-  const [h, m] = time.split(':');
-  const hour = parseInt(h, 10);
-  const display = `${hour > 12 ? hour - 12 : hour === 0 ? 12 : hour}:${m}`;
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-
   return (
     <TouchableOpacity
       onPress={available ? onPress : undefined}
@@ -24,18 +19,17 @@ export default function TimeSlot({ time, available, selected, onPress }: TimeSlo
       {selected && (
         <View style={styles.selectedBar} />
       )}
-      <Text style={[styles.time, selected && styles.timeSelected]}>{display}</Text>
-      <Text style={[styles.ampm, selected && styles.timeSelected]}>{ampm}</Text>
+      <Text style={[styles.time, selected && styles.timeSelected]}>{time}</Text>
       <View style={styles.spacer} />
       {selected ? (
         <View style={styles.badge}>
           <Feather name="check" size={11} color={colors.onAccent} />
-          <Text style={styles.badgeText}>Selected</Text>
+          <Text style={styles.badgeText}>Выбрано</Text>
         </View>
       ) : available ? (
-        <Text style={styles.free}>Free</Text>
+        <Text style={styles.free}>Свободно</Text>
       ) : (
-        <Text style={styles.taken}>Taken</Text>
+        <Text style={styles.taken}>Занято</Text>
       )}
     </TouchableOpacity>
   );

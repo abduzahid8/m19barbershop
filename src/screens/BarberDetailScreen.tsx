@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Dimensions, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -8,6 +8,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 import type { Barber } from '../data';
+import { barberImageSrc } from '../data';
 import { colors, spacing, fontSize, borderRadius, fonts } from '../theme';
 import Button from '../components/Button';
 import PortfolioGallery from '../components/PortfolioGallery';
@@ -36,6 +37,9 @@ export default function BarberDetailScreen() {
   const navigation = useNavigation<Nav>();
   const { data: barbers } = useBarbers();
   const barber = barbers.find((b) => b.id === route.params.barberId) || null;
+  const [heroFailed, setHeroFailed] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const [compactActive, setCompactActive] = useState(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const pageFade = useRef(new Animated.Value(0)).current;
@@ -47,7 +51,7 @@ export default function BarberDetailScreen() {
   if (!barber) {
     return (
       <SafeAreaView style={styles.wrapper}>
-        <Text style={styles.error}>Barber not found</Text>
+        <Text style={styles.error}>Барбер не найден</Text>
       </SafeAreaView>
     );
   }
@@ -79,8 +83,8 @@ export default function BarberDetailScreen() {
   return (
     <View style={styles.wrapper}>
       <Animated.View style={[styles.heroWrap, { transform: [{ scale: heroScale }, { translateY: heroTranslate }], opacity: heroFade }]}>
-        {barber.imageUrl ? (
-          <Image source={{ uri: barber.imageUrl }} style={styles.heroImg} resizeMode="cover" />
+        {barber.imageUrl && !heroFailed ? (
+          <Image source={barberImageSrc(barber.imageUrl)!} style={styles.heroImg} resizeMode="cover" onError={() => setHeroFailed(true)} />
         ) : (
           <View style={[styles.heroImg, { backgroundColor: bgColor, alignItems: 'center', justifyContent: 'center' }]}>
             <Text style={styles.heroInitials}>{initials}</Text>
@@ -90,7 +94,7 @@ export default function BarberDetailScreen() {
         <LinearGradient colors={['rgba(0,0,0,0.3)', 'transparent']} style={styles.heroTopGrad} pointerEvents="none" />
       </Animated.View>
 
-      <Animated.View style={[styles.compactHdr, { opacity: headerOpacity }]}>
+      <Animated.View style={[styles.compactHdr, { opacity: headerOpacity }]} pointerEvents={compactActive ? 'auto' : 'none'}>
         <BlurView intensity={85} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={styles.compactHdrContent}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.compactBack}>
@@ -109,7 +113,10 @@ export default function BarberDetailScreen() {
           scrollEventThrottle={16}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
+            { useNativeDriver: true, listener: (e) => {
+              const y = (e as any).nativeEvent.contentOffset.y;
+              setCompactActive(y > HERO_H * 0.45);
+            }}
           )}
         >
           <View style={styles.backRow}>
@@ -121,8 +128,8 @@ export default function BarberDetailScreen() {
           <Animated.View style={[styles.profileSection, { opacity: pageFade }]}>
             <View style={styles.avatarWrap}>
               <View style={[styles.avatarRing, { borderColor: bgColor }]}>
-                {barber.imageUrl ? (
-                  <Image source={{ uri: barber.imageUrl }} style={styles.avatar} />
+                {barber.imageUrl && !avatarFailed ? (
+                  <Image source={barberImageSrc(barber.imageUrl)!} style={styles.avatar} onError={() => setAvatarFailed(true)} />
                 ) : (
                   <View style={[styles.avatar, { backgroundColor: bgColor, alignItems: 'center', justifyContent: 'center' }]}>
                     <Text style={styles.avatarInitials}>{initials}</Text>
@@ -141,17 +148,17 @@ export default function BarberDetailScreen() {
               {!barber.available && (
                 <View style={[styles.badge, { backgroundColor: 'rgba(239,83,80,0.25)' }]}>
                   <Feather name="clock" size={11} color="#EF5350" />
-                  <Text style={[styles.badgeText, { color: '#EF5350' }]}>Unavailable</Text>
+                  <Text style={[styles.badgeText, { color: '#EF5350' }]}>Недоступен</Text>
                 </View>
               )}
             </View>
 
             <View style={styles.statsRow}>
-              <StatBadge icon="star" value={barber.rating} label="Rating" />
+              <StatBadge icon="star" value={barber.rating} label="Рейтинг" />
               <View style={styles.statDiv} />
-              <StatBadge icon="message-square" value={barber.reviewCount} label="Reviews" />
+              <StatBadge icon="message-square" value={barber.reviewCount} label="Отзывы" />
               <View style={styles.statDiv} />
-              <StatBadge icon="award" value="Pro" label="Level" />
+              <StatBadge icon="award" value="Pro" label="Уровень" />
             </View>
 
             <Text style={styles.bio}>{barber.bio}</Text>
@@ -164,7 +171,7 @@ export default function BarberDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHdr}>
               <Feather name="message-circle" size={17} color={colors.textSecondary} />
-              <Text style={styles.sectionTitle}>Reviews</Text>
+              <Text style={styles.sectionTitle}>Отзывы</Text>
               <Text style={styles.sectionCount}>{barber.reviewCount}</Text>
             </View>
             <View style={styles.reviewsList}>
@@ -186,7 +193,7 @@ export default function BarberDetailScreen() {
 
         <View style={styles.bottomBar}>
           <Button
-            title={barber.available ? 'Book with him' : 'Not available'}
+            title={barber.available ? 'Записаться к нему' : 'Недоступен'}
             onPress={() => {
               if (barber.available) navigation.navigate('Booking', { preselectedBarber: barber });
             }}

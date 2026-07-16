@@ -6,6 +6,7 @@ import * as api from '../services/api';
 interface BookingState {
   selectedServices: Service[];
   selectedBarber: Barber | null;
+  anyBarber: boolean;
   preselectedBarber: Barber | null;
   selectedDate: string | null;
   selectedTime: string | null;
@@ -18,6 +19,7 @@ type BookingAction =
   | { type: 'SELECT_SERVICE'; service: Service }
   | { type: 'DESELECT_SERVICE'; serviceId: string }
   | { type: 'SELECT_BARBER'; barber: Barber | null }
+  | { type: 'SELECT_ANY_BARBER' }
   | { type: 'PRESELECT_BARBER'; barber: Barber }
   | { type: 'SELECT_DATE'; date: string }
   | { type: 'SELECT_TIME'; time: string }
@@ -30,6 +32,7 @@ type BookingAction =
 const initialState: BookingState = {
   selectedServices: [],
   selectedBarber: null,
+  anyBarber: false,
   preselectedBarber: null,
   selectedDate: null,
   selectedTime: null,
@@ -56,7 +59,9 @@ function bookingReducer(state: BookingState, action: BookingAction): BookingStat
         selectedServices: state.selectedServices.filter((s) => s.id !== action.serviceId),
       };
     case 'SELECT_BARBER':
-      return { ...state, selectedBarber: action.barber };
+      return { ...state, selectedBarber: action.barber, anyBarber: false };
+    case 'SELECT_ANY_BARBER':
+      return { ...state, selectedBarber: null, anyBarber: true };
     case 'PRESELECT_BARBER':
       return { ...state, preselectedBarber: action.barber, selectedBarber: action.barber };
     case 'SELECT_DATE':
@@ -83,11 +88,17 @@ interface BookingContextValue {
   dispatch: React.Dispatch<BookingAction>;
   selectService: (service: Service) => void;
   selectBarber: (barber: Barber | null) => void;
+  selectAnyBarber: () => void;
   selectDate: (date: string) => void;
   selectTime: (time: string) => void;
   nextStep: () => void;
   prevStep: () => void;
-  submitBooking: () => Promise<string | null>;
+  submitBooking: (params: {
+    barberId: string;
+    serviceIds: string[];
+    datetime: string;
+    duration: number;
+  }) => Promise<string | null>;
   reset: () => void;
 }
 
@@ -95,6 +106,7 @@ const BookingContext = createContext<BookingContextValue | null>(null);
 
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(bookingReducer, initialState);
+  const { user } = useAuth();
 
   const selectService = useCallback(
     (service: Service) => dispatch({ type: 'SELECT_SERVICE', service }),
@@ -102,6 +114,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   );
   const selectBarber = useCallback(
     (barber: Barber | null) => dispatch({ type: 'SELECT_BARBER', barber }),
+    []
+  );
+  const selectAnyBarber = useCallback(
+    () => dispatch({ type: 'SELECT_ANY_BARBER' }),
     []
   );
   const selectDate = useCallback(
@@ -116,13 +132,31 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const prevStep = useCallback(() => dispatch({ type: 'PREV_STEP' }), []);
   const reset = useCallback(() => dispatch({ type: 'RESET' }), []);
 
-  const submitBooking = useCallback(async (): Promise<string | null> => {
+  const submitBooking = useCallback(async (params: {
+    barberId: string;
+    serviceIds: string[];
+    datetime: string;
+    duration: number;
+  }): Promise<string | null> => {
+    if (!user) return 'Not authenticated';
     dispatch({ type: 'SET_SUBMITTING', submitting: true });
     dispatch({ type: 'SET_SUBMIT_ERROR', error: null });
+    const result = await api.createAppointment({
+      userEmail: user.email,
+      userName: user.name,
+      barberId: params.barberId,
+      serviceIds: params.serviceIds,
+      datetime: params.datetime,
+      duration: params.duration,
+    });
+    if (result.error) {
+      dispatch({ type: 'SET_SUBMIT_ERROR', error: result.error });
+      dispatch({ type: 'SET_SUBMITTING', submitting: false });
+      return result.error;
+    }
+    dispatch({ type: 'SET_SUBMITTING', submitting: false });
     return null;
-  }, []);
-
-  // The actual submission is handled in the screen via addAppointment from AppContext
+  }, [user?.email, user?.name]);
 
   return (
     <BookingContext.Provider
@@ -131,6 +165,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         dispatch,
         selectService,
         selectBarber,
+        selectAnyBarber,
         selectDate,
         selectTime,
         nextStep,

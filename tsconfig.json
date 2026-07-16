@@ -4,5 +4,5 @@
     "jsx": "react-native"
   },
   "extends": "expo/tsconfig.base",
-  "exclude": ["Dovud", "node_modules", "dist", ".expo"]
+  "exclude": ["node_modules", "dist", ".expo", "supabase", "jest-setup.ts", "**/__tests__/**", "**/__mocks__/**"]
 }

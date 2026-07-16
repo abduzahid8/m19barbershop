@@ -1,7 +1,7 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { TouchableOpacity, Text, View, StyleSheet, Animated, Image, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Barber } from '../data';
+import { Barber, barberImageSrc } from '../data';
 import { colors, spacing, fontSize, borderRadius, fonts, cardShadow } from '../theme';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -22,6 +22,7 @@ export default function BarberCard({ barber, onPress, compact = false, selected,
   const slideUp = useRef(new Animated.Value(20)).current;
   const pressScale = useRef(new Animated.Value(1)).current;
   const imgLoaded = useRef(new Animated.Value(0)).current;
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
     const delay = 100 + index * 80;
@@ -45,11 +46,13 @@ export default function BarberCard({ barber, onPress, compact = false, selected,
   const bgColor = colors.barberColors[barber.colorIndex % colors.barberColors.length];
   const imgH = compact ? COMPACT_IMG_H : CARD_IMG_HEIGHT;
 
-  const imageContent = barber.imageUrl ? (
+  const showImg = barber.imageUrl && !imgFailed;
+  const imageContent = showImg ? (
     <Animated.View style={{ opacity: imgLoaded }}>
       <Image
-        source={{ uri: barber.imageUrl }}
+        source={barberImageSrc(barber.imageUrl)!}
         onLoad={onImageLoad}
+        onError={() => setImgFailed(true)}
         style={{ width: '100%', height: imgH }}
         resizeMode="cover"
       />
@@ -97,7 +100,7 @@ export default function BarberCard({ barber, onPress, compact = false, selected,
             </View>
             {!barber.available && (
               <View style={styles.unavailableBadge}>
-                <Text style={styles.unavailableBadgeText}>Unavailable</Text>
+                <Text style={styles.unavailableBadgeText}>Недоступен</Text>
               </View>
             )}
           </View>

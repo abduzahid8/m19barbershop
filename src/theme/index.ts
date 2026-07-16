@@ -22,7 +22,7 @@ export const colors = {
   error: '#EF5350',
   warning: '#FFD54F',
   overlay: 'rgba(0,0,0,0.6)',
-  barberColors: ['#E8A87C', '#85A085', '#B5B59C', '#D4A88B'],
+  barberColors: ['#E8A87C', '#85A085', '#B5B59C', '#D4A88B', '#A8B8C8', '#C8A8B8'],
 };
 
 export const spacing = {

@@ -11,20 +11,20 @@ export default function AppointmentCard({ appointment }: AppointmentCardProps) {
     <View style={[styles.card, cardShadow]}>
       <View style={styles.topRow}>
         <View style={styles.indicator} />
-        <Text style={styles.label}>UPCOMING</Text>
+        <Text style={styles.label}>СКОРО</Text>
       </View>
       <Text style={styles.date}>{formatDateLong(appointment.date)}</Text>
       <View style={styles.divider} />
       <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>Time</Text>
+        <Text style={styles.detailLabel}>Время</Text>
         <Text style={styles.detailValue}>{appointment.time}</Text>
       </View>
       <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>Barber</Text>
+        <Text style={styles.detailLabel}>Мастер</Text>
         <Text style={styles.detailValue}>{appointment.barberName}</Text>
       </View>
       <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>Service</Text>
+        <Text style={styles.detailLabel}>Услуга</Text>
         <Text style={styles.detailValue}>{appointment.serviceNames.join(', ')}</Text>
       </View>
     </View>

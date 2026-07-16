@@ -1,0 +1,141 @@
+appId: uz.m19barbershop.app
+---
+# ============================================
+# Full E2E Test: Complete User Journey
+# Covers: Auth → Home → Full Booking → Barbers → Barber Detail → Profile → Settings
+# ============================================
+
+# --- Auth (guest sign-in if first launch) ---
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Продолжить как гость"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# ===== HOME SCREEN =====
+- assertVisible: "M19"
+- assertVisible: "Barbershop"
+- assertVisible: "Записаться"
+
+# ===== FULL BOOKING FLOW (4 steps) =====
+
+# Step 1: Select services
+- tapOn:
+    text: "Записаться"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: "Меню"
+- assertVisible: "Что вас интересует?"
+# Select the first available service by tapping its card
+- tapOn:
+    point: "28%,70%"
+- waitForAnimationToEnd:
+    timeout: 1000
+- assertVisible: "1 услуга"
+
+# Proceed to barber selection (using point because "Далее" label contains unicode icon)
+- tapOn:
+    point: "79%,95%"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Step 2: Select barber
+- assertVisible: "Мастер"
+- assertVisible: "Выберите мастера"
+# Tap on the first barber avatar in the constellation grid
+- tapOn:
+    point: "20%,75%"
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Proceed to time selection
+- tapOn:
+    point: "79%,95%"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Step 3: Select time
+- assertVisible: "Время"
+- assertVisible: "Выберите время"
+# Tap date pill (dynamic from wrapper script)
+- tapOn:
+    point: "${DATE_PCT}"
+- waitForAnimationToEnd:
+    timeout: 5000
+# Tap the first available time slot (via dynamic env var)
+- tapOn:
+    point: "50%,${SLOT_Y}"
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Confirm booking (using point because "Подтвердить" label contains unicode icon)
+- tapOn:
+    point: "72%,95%"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Step 4: Booking confirmation
+- assertVisible: "Запись подтверждена"
+- assertVisible: "Мастер"
+- assertVisible: "Услуга"
+- assertVisible: "Дата"
+- assertVisible: "Время"
+- assertVisible: "Итого"
+- assertVisible: "Добавить в календарь"
+- assertVisible: "На главную"
+
+# Return to home
+- tapOn:
+    text: "На главную"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# ===== BARBERS TAB =====
+- tapOn:
+    point: "50%,95%"
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: "Наши барберы"
+
+# Open barber detail from hero carousel
+- tapOn:
+    point: "50%,40%"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: "Записаться к нему"
+- assertVisible: "Отзывы"
+
+# Go back to barbers list (back button at [[20,387][58,425]] ≈ 10%,46%)
+- tapOn:
+    point: "10%,46%"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible: "Наши барберы"
+
+# ===== PROFILE TAB =====
+# Tab bar is centered, width=330, left=36. Profile tab spans x=256-366 (77%-91%)
+- tapOn:
+    point: "77%,95%"
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: "Профиль"
+
+# Swipe up to reveal bottom, then tap settings by testID
+- swipe:
+    direction: UP
+    duration: 800
+- waitForAnimationToEnd:
+    timeout: 1500
+- tapOn:
+    id: "settingsBtn"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: "Настройки"
+- assertVisible: "Уведомления"
+- assertVisible: "Язык"
+- assertVisible: "Русский"
+- assertVisible: "Выйти"
+- assertVisible: "M19 Barbershop v1.0.0"

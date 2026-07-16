@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 import { useApp } from '../state/AppContext';
-import { formatDate, timeAgo, shopInfo } from '../data';
+import { formatDate, timeAgo, shopInfo, barberImageSrc } from '../data';
 import { useBarbers } from '../hooks/useData';
 import { colors, spacing, fontSize, borderRadius, fonts, cardShadow } from '../theme';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -13,15 +13,14 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
-  const { upcoming, history, shopReviews, addShopReview, totalVisits, loyaltyPoints } = useApp();
+  const { upcoming, history, shopReviews } = useApp();
   const { data: barbers } = useBarbers();
   const navigation = useNavigation<Nav>();
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
   const [barbersExpanded, setBarbersExpanded] = useState(false);
-  const [reviewFormVisible, setReviewFormVisible] = useState(false);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewText, setReviewText] = useState('');
+  const [failedAvatars, setFailedAvatars] = useState<Set<string>>(new Set());
+  const [failedFavs, setFailedFavs] = useState<Set<string>>(new Set());
   const fadeIn = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -29,25 +28,17 @@ export default function ProfileScreen() {
   }, []);
 
   const lastVisit = history.length > 0 ? history.reduce((latest, a) => a.date > latest.date ? a : latest) : null;
-  const nextMilestone = 5;
-  const progress = Math.min(totalVisits / nextMilestone, 1);
   const avgRating = shopReviews.length
     ? (shopReviews.reduce((s, r) => s + r.rating, 0) / shopReviews.length).toFixed(1)
     : '0.0';
-
-  function handleSubmitReview() {
-    if (!reviewText.trim()) return;
-    addShopReview({ author: 'You', rating: reviewRating, text: reviewText.trim() });
-    setReviewText('');
-    setReviewRating(5);
-    setReviewFormVisible(false);
-  }
+  const reviewCount = shopReviews.length;
+  const reviewLabel = reviewCount === 1 ? '1 отзыв' : reviewCount >= 2 && reviewCount <= 4 ? `${reviewCount} отзыва` : `${reviewCount} отзывов`;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <Animated.View style={{ opacity: fadeIn }}>
-          <Text style={styles.title}>Profile</Text>
+          <Text style={styles.title}>Профиль</Text>
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -58,7 +49,7 @@ export default function ProfileScreen() {
                 style={styles.reviewsToggle}
               >
                 <Text style={styles.reviewsToggleText}>
-                  {shopReviews.length} reviews
+                  {reviewLabel}
                 </Text>
                 <Feather
                   name={reviewsExpanded ? 'chevron-up' : 'chevron-down'}
@@ -78,60 +69,19 @@ export default function ProfileScreen() {
                   ))}
                 </View>
               </View>
-              <TouchableOpacity
-                style={styles.writeReviewBtn}
-                onPress={async () => {
-                  setReviewsExpanded(true);
-                  setReviewFormVisible(!reviewFormVisible);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.writeReviewText}>
-                  {reviewFormVisible ? 'Cancel' : 'Write a review'}
-                </Text>
-              </TouchableOpacity>
             </View>
-
-            {reviewsExpanded && reviewFormVisible && (
-              <View style={[styles.reviewForm, cardShadow]}>
-                <View style={styles.starSelector}>
-                  <Text style={styles.starLabel}>Your rating</Text>
-                  <View style={styles.starRow}>
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <TouchableOpacity key={s} onPress={() => setReviewRating(s)} activeOpacity={0.7}>
-                        <Text style={[styles.starSelectable, s <= reviewRating && styles.starSelected]}>
-                          ★
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-                <TextInput
-                  style={styles.reviewInput}
-                  placeholder="Share your experience..."
-                  placeholderTextColor={colors.cardTextTertiary}
-                  value={reviewText}
-                  onChangeText={setReviewText}
-                  multiline
-                />
-                <TouchableOpacity
-                  style={[styles.submitReviewBtn, !reviewText.trim() && styles.submitReviewBtnDisabled]}
-                  onPress={handleSubmitReview}
-                  activeOpacity={0.7}
-                  disabled={!reviewText.trim()}
-                >
-                  <Text style={styles.submitReviewText}>Submit review</Text>
-                </TouchableOpacity>
-              </View>
-            )}
 
             {reviewsExpanded && shopReviews.map((r) => (
               <View key={r.id} style={[styles.reviewCard, cardShadow]}>
                 <View style={styles.reviewCardTop}>
                   <View style={styles.reviewAuthorRow}>
-                    <View style={[styles.reviewAvatar, { backgroundColor: colors.barberColors[Number(r.id.slice(-1)) % 4] }]}>
-                      <Text style={styles.reviewAvatarText}>{r.author[0].toUpperCase()}</Text>
-                    </View>
+                    {r.authorAvatarUrl && !failedAvatars.has(r.id) ? (
+                      <Image source={{ uri: r.authorAvatarUrl }} style={styles.reviewAvatar} onError={() => setFailedAvatars((prev) => { const n = new Set(prev); n.add(r.id); return n; })} />
+                    ) : (
+                      <View style={[styles.reviewAvatar, { backgroundColor: colors.barberColors[Number(r.id.slice(-1)) % 4] }]}>
+                        <Text style={styles.reviewAvatarText}>{r.author[0].toUpperCase()}</Text>
+                      </View>
+                    )}
                     <View>
                       <Text style={styles.reviewAuthor}>{r.author}</Text>
                       <Text style={styles.reviewDate}>{formatDate(r.date)}</Text>
@@ -149,39 +99,32 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Loyalty</Text>
-            <View style={[styles.loyaltyCard, cardShadow]}>
-              <View style={styles.loyaltyHeader}>
-                <Text style={styles.loyaltyPoints}>{loyaltyPoints}</Text>
-                <Text style={styles.loyaltySub}>points</Text>
+            <Text style={styles.sectionLabel}>Контакты</Text>
+            <View style={[styles.contactCard, cardShadow]}>
+              <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL(`tel:${shopInfo.phone}`)} activeOpacity={0.7}>
+                <Feather name="phone" size={16} color={colors.cardTextSecondary} />
+                <Text style={styles.contactText}>{shopInfo.phone}</Text>
+              </TouchableOpacity>
+              <View style={styles.contactDivider} />
+              <View style={styles.contactRow}>
+                <Feather name="map-pin" size={16} color={colors.cardTextSecondary} />
+                <Text style={styles.contactText}>{shopInfo.address}</Text>
               </View>
-              <View style={styles.progressWrap}>
-                <View style={styles.progressBg}>
-                  <View style={[styles.progressFill, { flex: progress || 0.01 }]} />
-                </View>
-                <Text style={styles.progressText}>
-                  {totalVisits} / {nextMilestone} visits to next reward
-                </Text>
-              </View>
-              <View style={styles.loyaltyStats}>
-                <Text style={styles.loyaltyStat}>
-                  {totalVisits} visit{totalVisits !== 1 ? 's' : ''}
-                </Text>
-                <Text style={styles.loyaltyStatDot}>·</Text>
-                <Text style={styles.loyaltyStat}>
-                  Last visit {lastVisit ? timeAgo(lastVisit.date) : 'N/A'}
-                </Text>
+              <View style={styles.contactDivider} />
+              <View style={styles.contactRow}>
+                <Feather name="clock" size={16} color={colors.cardTextSecondary} />
+                <Text style={styles.contactText}>{shopInfo.hours}</Text>
               </View>
             </View>
           </View>
 
           {upcoming ? (
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Next appointment</Text>
+              <Text style={styles.sectionLabel}>Ближайшая запись</Text>
               <View style={[styles.appointmentCard, cardShadow]}>
                 <View style={styles.appTop}>
                   <View style={styles.appIndicator} />
-                  <Text style={styles.appStatus}>Confirmed</Text>
+                  <Text style={styles.appStatus}>Подтверждено</Text>
                 </View>
                 <Text style={styles.appDate}>{formatDate(upcoming.date)}</Text>
                 <Text style={styles.appDetail}>
@@ -192,14 +135,14 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Next appointment</Text>
+              <Text style={styles.sectionLabel}>Ближайшая запись</Text>
               <TouchableOpacity
                 style={styles.emptyAppointment}
                 onPress={() => navigation.navigate('Booking', undefined)}
                 activeOpacity={0.7}
               >
                 <Feather name="plus-circle" size={24} color={colors.cardTextTertiary} />
-                <Text style={styles.emptyAppointmentText}>Book your first visit</Text>
+                <Text style={styles.emptyAppointmentText}>Записаться впервые</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -210,7 +153,7 @@ export default function ProfileScreen() {
               onPress={() => setHistoryExpanded(!historyExpanded)}
               activeOpacity={0.7}
             >
-              <Text style={styles.sectionLabel}>Visit history ({totalVisits})</Text>
+              <Text style={styles.sectionLabel}>История посещений ({history.length})</Text>
               <Feather
                 name={historyExpanded ? 'chevron-up' : 'chevron-down'}
                 size={20}
@@ -220,7 +163,7 @@ export default function ProfileScreen() {
             {historyExpanded && (
               <View>
                 {history.length === 0 && (
-                  <Text style={styles.emptyText}>No visits yet</Text>
+                  <Text style={styles.emptyText}>Пока нет посещений</Text>
                 )}
                 {history.map((a) => (
                   <View key={a.id} style={styles.historyItem}>
@@ -246,7 +189,7 @@ export default function ProfileScreen() {
               onPress={() => setBarbersExpanded(!barbersExpanded)}
               activeOpacity={0.7}
             >
-              <Text style={styles.sectionLabel}>Barbers ({barbers.length})</Text>
+              <Text style={styles.sectionLabel}>Барберы ({barbers.length})</Text>
               <Feather
                 name={barbersExpanded ? 'chevron-up' : 'chevron-down'}
                 size={20}
@@ -260,8 +203,8 @@ export default function ProfileScreen() {
                 onPress={() => navigation.navigate('BarberDetail', { barberId: b.id })}
                 activeOpacity={0.7}
               >
-                {b.imageUrl ? (
-                  <Image source={{ uri: b.imageUrl }} style={styles.favAvatar} />
+                {b.imageUrl && !failedFavs.has(b.id) ? (
+                  <Image source={barberImageSrc(b.imageUrl)!} style={styles.favAvatar} onError={() => setFailedFavs((prev) => { const n = new Set(prev); n.add(b.id); return n; })} />
                 ) : (
                   <View style={[styles.favAvatar, { backgroundColor: colors.barberColors[b.colorIndex], alignItems: 'center', justifyContent: 'center' }]}>
                     <Text style={styles.favInitials}>{b.name.slice(0, 2).toUpperCase()}</Text>
@@ -280,9 +223,10 @@ export default function ProfileScreen() {
             style={styles.settingsBtn}
             onPress={() => navigation.navigate('Settings')}
             activeOpacity={0.7}
+            testID="settingsBtn"
           >
             <Feather name="settings" size={18} color={colors.textSecondary} />
-            <Text style={styles.settingsText}>Settings</Text>
+            <Text style={styles.settingsText}>Настройки</Text>
             <Feather name="chevron-right" size={18} color={colors.textTertiary} />
           </TouchableOpacity>
         </Animated.View>
@@ -293,7 +237,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.xxl, paddingBottom: spacing.huge },
+  content: { padding: spacing.xxl, paddingBottom: spacing.huge + 80 },
   title: {
     fontSize: fontSize.xxxl, fontFamily: fonts.display, color: colors.text,
     marginBottom: spacing.xxxl, paddingTop: spacing.huge,
@@ -360,38 +304,7 @@ const styles = StyleSheet.create({
   historyPrice: {
     fontSize: fontSize.md, fontFamily: fonts.body, fontWeight: '600', color: colors.cardText,
   },
-  loyaltyCard: {
-    backgroundColor: colors.card, borderRadius: borderRadius.lg, padding: spacing.xl,
-  },
-  loyaltyHeader: {
-    flexDirection: 'row', alignItems: 'baseline', marginBottom: spacing.lg,
-  },
-  loyaltyPoints: {
-    fontSize: fontSize.huge, fontFamily: fonts.display, color: colors.cardText, marginRight: spacing.sm,
-  },
-  loyaltySub: {
-    fontSize: fontSize.md, color: colors.cardText, fontFamily: fonts.bodyLight,
-  },
-  progressWrap: { marginBottom: spacing.md },
-  progressBg: {
-    height: 4, backgroundColor: colors.surfaceAlt, borderRadius: 2,
-    flexDirection: 'row', marginBottom: spacing.sm, overflow: 'hidden',
-  },
-  progressFill: {
-    backgroundColor: colors.accent, borderRadius: 2, minWidth: 4,
-  },
-  progressText: {
-    fontSize: fontSize.xs, color: colors.cardText, fontFamily: fonts.bodyLight,
-  },
-  loyaltyStats: {
-    flexDirection: 'row', alignItems: 'center',
-  },
-  loyaltyStat: {
-    fontSize: fontSize.sm, color: colors.cardText, fontFamily: fonts.bodyLight,
-  },
-  loyaltyStatDot: {
-    fontSize: fontSize.sm, color: colors.cardText, marginHorizontal: spacing.sm,
-  },
+
   favCard: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: colors.card, borderRadius: borderRadius.lg, padding: spacing.lg,
@@ -433,43 +346,6 @@ const styles = StyleSheet.create({
   reviewStarSmall: {
     fontSize: fontSize.sm, color: colors.cardText, marginRight: 2,
   },
-  writeReviewBtn: {
-    backgroundColor: colors.background, borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
-  },
-  writeReviewText: {
-    fontSize: fontSize.sm, fontFamily: fonts.body, fontWeight: '600', color: colors.text,
-  },
-  reviewForm: {
-    backgroundColor: colors.card, borderRadius: borderRadius.lg, padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  starSelector: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  starLabel: {
-    fontSize: fontSize.sm, fontFamily: fonts.body, color: colors.cardTextSecondary,
-  },
-  starRow: { flexDirection: 'row' },
-  starSelectable: {
-    fontSize: fontSize.xxl, color: colors.cardTextTertiary, marginLeft: spacing.xs,
-  },
-  starSelected: { color: '#FFD700' },
-  reviewInput: {
-    backgroundColor: colors.surfaceAlt, borderRadius: borderRadius.md,
-    padding: spacing.md, fontSize: fontSize.md, fontFamily: fonts.bodyLight,
-    color: colors.cardText, minHeight: 80, textAlignVertical: 'top',
-    marginBottom: spacing.md,
-  },
-  submitReviewBtn: {
-    backgroundColor: colors.background, borderRadius: borderRadius.md,
-    paddingVertical: spacing.md, alignItems: 'center',
-  },
-  submitReviewBtnDisabled: { opacity: 0.4 },
-  submitReviewText: {
-    fontSize: fontSize.md, fontFamily: fonts.body, fontWeight: '600', color: colors.text,
-  },
   reviewCard: {
     backgroundColor: colors.card, borderRadius: borderRadius.lg, padding: spacing.lg,
     marginBottom: spacing.sm,
@@ -496,6 +372,19 @@ const styles = StyleSheet.create({
   reviewCardText: {
     fontSize: fontSize.md, fontFamily: fonts.bodyLight, color: colors.cardTextSecondary,
     lineHeight: 20,
+  },
+  contactCard: {
+    backgroundColor: colors.card, borderRadius: borderRadius.lg, padding: spacing.xl,
+  },
+  contactRow: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md,
+  },
+  contactText: {
+    fontSize: fontSize.md, fontFamily: fonts.bodyLight, color: colors.cardText,
+    marginLeft: spacing.md, flex: 1,
+  },
+  contactDivider: {
+    height: 1, backgroundColor: colors.border,
   },
   settingsBtn: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.lg,

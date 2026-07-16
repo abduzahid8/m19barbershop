@@ -7,4 +7,4 @@ appId: uz.m19barbershop.app
     point: "50%,95%"
 - waitForAnimationToEnd:
     timeout: 5000
-- assertVisible: "Our barbers"
+- assertVisible: "Выберите мастера"

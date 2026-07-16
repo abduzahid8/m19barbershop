@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { ScrollView, TouchableOpacity, Text, View, StyleSheet } from 'react-native';
 import { getDayNames } from '../data';
 import { colors, spacing, fontSize, borderRadius, fonts } from '../theme';
@@ -8,7 +9,7 @@ interface DayPickerProps {
 }
 
 export default function DayPicker({ selected, onSelect }: DayPickerProps) {
-  const days = getDayNames();
+  const days = useMemo(() => getDayNames(), []);
   const today = days[0]?.fullDate;
 
   return (

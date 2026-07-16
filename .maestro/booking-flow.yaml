@@ -4,9 +4,9 @@ appId: uz.m19barbershop.app
 - waitForAnimationToEnd:
     timeout: 5000
 - tapOn:
-    text: "Book now"
+    text: "Записаться"
 - waitForAnimationToEnd:
     timeout: 3000
-- assertVisible: "What brings you in?"
-- assertVisible: "Haircut"
-- assertVisible: "Beard Trim"
+- assertVisible: "Что вас интересует?"
+- assertVisible: "Стрижка"
+- assertVisible: "Коррекция бороды"

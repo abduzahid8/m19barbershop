@@ -1,68 +1,72 @@
-import { supabase } from '../lib/supabase';
-import type { ApiResult } from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { config } from './config';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const STORAGE_KEY = 'm19_user';
 
 export interface AuthUser {
   id: string;
-  phone: string;
+  email: string;
+  name: string;
+  avatar?: string;
 }
 
-// ─── Phone OTP ─────────────────────────────────────────────
-
-export async function sendOTP(phone: string): Promise<ApiResult<void>> {
-  const { error } = await supabase.auth.signInWithOtp({ phone });
-  if (error) return { data: null, error: error.message };
-  return { data: undefined, error: null };
-}
-
-export async function verifyOTP(
-  phone: string,
-  token: string
-): Promise<ApiResult<AuthUser>> {
-  const { data, error } = await supabase.auth.verifyOtp({
-    phone,
-    token,
-    type: 'sms',
-  });
-  if (error || !data.user) {
-    return { data: null, error: error?.message || 'Verification failed' };
+export async function getSession(): Promise<{ data: AuthUser | null; error: string | null }> {
+  try {
+    const json = await AsyncStorage.getItem(STORAGE_KEY);
+    if (!json) return { data: null, error: null };
+    return { data: JSON.parse(json), error: null };
+  } catch {
+    return { data: null, error: null };
   }
-  return {
-    data: { id: data.user.id, phone: data.user.phone || phone },
-    error: null,
+}
+
+export async function saveSession(user: AuthUser): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+}
+
+export async function clearSession(): Promise<void> {
+  await AsyncStorage.removeItem(STORAGE_KEY);
+}
+
+export async function guestSignIn(): Promise<AuthUser> {
+  const guest: AuthUser = {
+    id: 'guest',
+    email: 'guest@dev.local',
+    name: 'Guest',
   };
+  await saveSession(guest);
+  return guest;
 }
 
-// ─── Session ───────────────────────────────────────────────
-
-export async function getSession(): Promise<ApiResult<AuthUser | null>> {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) return { data: null, error: error.message };
-  if (!data.session?.user) return { data: null, error: null };
-  return {
-    data: {
-      id: data.session.user.id,
-      phone: data.session.user.phone || '',
-    },
-    error: null,
-  };
-}
-
-export async function signOut(): Promise<ApiResult<void>> {
-  const { error } = await supabase.auth.signOut();
-  if (error) return { data: null, error: error.message };
-  return { data: undefined, error: null };
-}
-
-// ─── Auth State Listener ───────────────────────────────────
-
-export function onAuthStateChange(
-  callback: (user: AuthUser | null) => void
-) {
-  return supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      callback({ id: session.user.id, phone: session.user.phone || '' });
-    } else {
-      callback(null);
-    }
+export function useGoogleAuth() {
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: config.googleClientId,
+    iosClientId: config.googleIosClientId,
+    androidClientId: config.googleAndroidClientId,
+    scopes: ['profile', 'email'],
   });
+
+  return { request, response, promptAsync };
+}
+
+export async function fetchGoogleUser(accessToken: string): Promise<AuthUser | null> {
+  try {
+    const res = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const data = await res.json();
+    if (!data.id) return null;
+    return {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      avatar: data.picture,
+    };
+  } catch {
+    return null;
+  }
 }

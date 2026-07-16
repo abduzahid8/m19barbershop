@@ -1,26 +1,40 @@
-import { View, Text, Switch, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Switch, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, fontSize, borderRadius, fonts } from '../theme';
 import Button from '../components/Button';
+import type { RootStackParamList } from '../navigation/AppNavigator';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function SettingsScreen() {
+  const { signOut } = useAuth();
+  const navigation = useNavigation<Nav>();
   const [notifications, setNotifications] = useState(true);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Settings</Text>
+        <View style={styles.topRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn} activeOpacity={0.7}>
+            <Feather name="chevron-left" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Настройки</Text>
+          <View style={styles.closeBtnPlaceholder} />
+        </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Preferences</Text>
+          <Text style={styles.sectionLabel}>Предпочтения</Text>
           <View style={styles.row}>
             <View style={styles.rowLeft}>
               <Feather name="bell" size={18} color={colors.textSecondary} />
               <View style={styles.rowText}>
-                <Text style={styles.rowLabel}>Notifications</Text>
-                <Text style={styles.rowDesc}>Remind me of appointments</Text>
+                <Text style={styles.rowLabel}>Уведомления</Text>
+                <Text style={styles.rowDesc}>Напоминать о записях</Text>
               </View>
             </View>
             <Switch
@@ -34,16 +48,16 @@ export default function SettingsScreen() {
             <View style={styles.rowLeft}>
               <Feather name="globe" size={18} color={colors.textSecondary} />
               <View style={styles.rowText}>
-                <Text style={styles.rowLabel}>Language</Text>
+                <Text style={styles.rowLabel}>Язык</Text>
               </View>
             </View>
-            <Text style={styles.rowValue}>English</Text>
+            <Text style={styles.rowValue}>Русский</Text>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Account</Text>
-          <Button title="Log out" variant="outline" fullWidth onPress={() => {}} style={styles.logout} />
+          <Text style={styles.sectionLabel}>Аккаунт</Text>
+          <Button title="Выйти" variant="outline" fullWidth onPress={signOut} style={styles.logout} />
         </View>
 
         <Text style={styles.version}>M19 Barbershop v1.0.0</Text>
@@ -55,12 +69,28 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.xxl, paddingBottom: spacing.huge },
-  title: {
-    fontSize: fontSize.xxxl,
-    fontFamily: fonts.display,
-    color: colors.text,
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing.xxxl,
     paddingTop: spacing.huge,
+  },
+  closeBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -spacing.md,
+  },
+  closeBtnPlaceholder: { width: 38 },
+  title: {
+    fontSize: fontSize.xxl,
+    fontFamily: fonts.display,
+    color: colors.text,
+    textAlign: 'center',
   },
   section: { marginBottom: spacing.xxxl },
   sectionLabel: {

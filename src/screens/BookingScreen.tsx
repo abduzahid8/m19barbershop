@@ -1,12 +1,13 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, Animated, TouchableOpacity, Dimensions, FlatList, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { getTimeSlots, formatDate, formatPrice, getDayNames, Service, Barber } from '../data';
+import { formatDate, formatPrice, getDayNames, Service, Barber, barberImageSrc } from '../data';
+import * as api from '../services/api';
 import { colors, spacing, fontSize, borderRadius, fonts, cardShadow } from '../theme';
 import { useBooking } from '../state/BookingContext';
 import { useApp } from '../state/AppContext';
@@ -27,20 +28,21 @@ const CONTENT_PAD = spacing.xxl;
 const CAROUSEL_W = SCREEN_W - CONTENT_PAD * 2;
 const CAROUSEL_H = 280;
 const PROGRESS_W = SCREEN_W - CONTENT_PAD * 2;
-const CATEGORIES = ['All', 'Premium', 'Hair', 'Beard', 'Shave'];
+const CATEGORIES = ['Все', 'Стрижки', 'Борода', 'Бритьё'];
 
 
 function getServiceCategory(service: Service): string {
   const name = service.name.toLowerCase();
   if (name.includes('premium') || name.includes('vip') || name.includes('private')) return 'Premium';
-  if (name.includes('beard') || name.includes('trim')) return 'Beard';
-  if (name.includes('shave') || name.includes('wash')) return 'Shave';
-  if (name.includes('kids') || name.includes('haircut')) return 'Hair';
-  return 'Hair';
+  if (name.includes('haircut') || name.includes('kids')) return 'Стрижки';
+  if (name.includes('beard') || name.includes('trim')) return 'Борода';
+  if (name.includes('shave') || name.includes('wash')) return 'Бритьё';
+  return 'Стрижки';
 }
 
 function SparkleDust() {
   const sp = useRef<{ x: Animated.Value; y: Animated.Value; o: Animated.Value; s: Animated.Value }[]>([]).current;
+  const sparkleRef = useRef<Animated.CompositeAnimation | null>(null);
   if (sp.length === 0) {
     for (let i = 0; i < 16; i++) {
       sp.push({
@@ -61,7 +63,13 @@ function SparkleDust() {
         Animated.spring(p.s, { toValue: 1, friction: 5, tension: 60, useNativeDriver: true }),
       ]);
     });
-    Animated.stagger(30, anims).start();
+    sparkleRef.current = Animated.stagger(30, anims);
+    sparkleRef.current.start();
+    return () => {
+      if (sparkleRef.current) {
+        sparkleRef.current.stop();
+      }
+    };
   }, []);
 
   return (
@@ -81,18 +89,27 @@ function ExpandingRings() {
   const rings = useRef(Array.from({ length: 3 }, () => ({
     scale: new Animated.Value(0), opacity: new Animated.Value(0),
   }))).current;
+  const ringAnims = useRef<Animated.CompositeAnimation[]>([]);
 
   useEffect(() => {
+    ringAnims.current.forEach((a) => a.stop());
+    ringAnims.current = [];
     rings.forEach((r, i) => {
-      Animated.sequence([
+      const anim = Animated.sequence([
         Animated.delay(i * 250),
         Animated.parallel([
           Animated.spring(r.scale, { toValue: 1, friction: 7, tension: 40, useNativeDriver: true }),
           Animated.timing(r.opacity, { toValue: 0.5, duration: 200, useNativeDriver: true }),
         ]),
         Animated.timing(r.opacity, { toValue: 0, duration: 800, useNativeDriver: true }),
-      ]).start();
+      ]);
+      anim.start();
+      ringAnims.current.push(anim);
     });
+    return () => {
+      ringAnims.current.forEach((a) => a.stop());
+      ringAnims.current = [];
+    };
   }, []);
 
   return (
@@ -126,19 +143,31 @@ function WaxStamp({ scale }: { scale: Animated.Value }) {
 
 function SpotlightBeam({ active }: { active: boolean }) {
   const beamY = useRef(new Animated.Value(-100)).current;
+  const beamLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
+    if (beamLoopRef.current) {
+      beamLoopRef.current.stop();
+      beamLoopRef.current = null;
+    }
     if (active) {
-      Animated.loop(
+      beamLoopRef.current = Animated.loop(
         Animated.sequence([
           Animated.timing(beamY, { toValue: CAROUSEL_H + 50, duration: 2500, useNativeDriver: true }),
           Animated.timing(beamY, { toValue: -100, duration: 0, useNativeDriver: true }),
         ]),
         { iterations: -1 }
-      ).start();
+      );
+      beamLoopRef.current.start();
     } else {
       beamY.setValue(-100);
     }
+    return () => {
+      if (beamLoopRef.current) {
+        beamLoopRef.current.stop();
+        beamLoopRef.current = null;
+      }
+    };
   }, [active]);
 
   if (!active) return null;
@@ -150,23 +179,28 @@ function SpotlightBeam({ active }: { active: boolean }) {
   );
 }
 
-function AvatarConstellation({ barbers: bbs, selected, onSelect, onCarouselScroll }: {
+function AvatarConstellation({ barbers: bbs, selected, onSelect }: {
   barbers: Barber[]; selected: Barber | null;
   onSelect: (b: Barber) => void;
-  onCarouselScroll: (idx: number) => void;
 }) {
   const COL_WIDTH = (SCREEN_W - CONTENT_PAD * 2) / 3;
+  const [failed, setFailed] = useState<Set<string>>(new Set());
+
+  const markFailed = useCallback((id: string) => {
+    setFailed((prev) => { const next = new Set(prev); next.add(id); return next; });
+  }, []);
 
   return (
     <View style={styles.constellation}>
       {bbs.map((b, i) => {
         const isSel = selected?.id === b.id;
+        const showImg = b.imageUrl && !failed.has(b.id);
         return (
-          <TouchableOpacity key={b.id} onPress={() => { onSelect(b); onCarouselScroll(i); }} activeOpacity={0.8}
+          <TouchableOpacity key={b.id} onPress={() => onSelect(b)} activeOpacity={0.8}
             style={[styles.constDot, { width: COL_WIDTH }]}>
             <View style={[styles.constAvatar, isSel && styles.constAvatarActive]}>
-              {b.imageUrl ? (
-                <Image source={{ uri: b.imageUrl }} style={styles.constImg} />
+              {showImg ? (
+                <Image source={barberImageSrc(b.imageUrl)!} style={styles.constImg} onError={() => markFailed(b.id)} />
               ) : (
                 <View style={[styles.constImg, { backgroundColor: colors.barberColors[b.colorIndex % colors.barberColors.length] }]} />
               )}
@@ -185,6 +219,22 @@ function BarberCardStack({ barbers: bbs, selected, onSelect }: {
 }) {
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatRef = useRef<FlatList>(null);
+  const [failedCards, setFailedCards] = useState<Set<string>>(new Set());
+  const prevSelectedId = useRef(selected?.id);
+
+  useEffect(() => {
+    if (selected && selected.id !== prevSelectedId.current) {
+      const idx = bbs.findIndex((b) => b.id === selected.id);
+      if (idx >= 0) {
+        flatRef.current?.scrollToIndex({ index: idx, animated: true });
+      }
+    }
+    prevSelectedId.current = selected?.id;
+  }, [selected, bbs]);
+
+  const markFailed = useCallback((id: string) => {
+    setFailedCards((prev) => { const next = new Set(prev); next.add(id); return next; });
+  }, []);
 
   const renderItem = useCallback(({ item, index }: { item: Barber; index: number }) => {
     const input = [(index - 1) * CAROUSEL_W, index * CAROUSEL_W, (index + 1) * CAROUSEL_W];
@@ -192,12 +242,13 @@ function BarberCardStack({ barbers: bbs, selected, onSelect }: {
     const opacity = scrollX.interpolate({ inputRange: input, outputRange: [0.3, 1, 0.3], extrapolate: 'clamp' });
     const rotateY = scrollX.interpolate({ inputRange: input, outputRange: ['15deg', '0deg', '-15deg'], extrapolate: 'clamp' });
     const isSel = selected?.id === item.id;
+    const showImg = item.imageUrl && !failedCards.has(item.id);
 
     return (
       <TouchableOpacity onPress={() => { onSelect(item); flatRef.current?.scrollToIndex({ index, animated: true }); }} activeOpacity={1} style={{ width: CAROUSEL_W }}>
         <Animated.View style={[{ width: CAROUSEL_W, height: CAROUSEL_H, borderRadius: borderRadius.lg, overflow: 'hidden', opacity, transform: [{ scale }, { perspective: 800 }, { rotateY }] }, isSel && styles.stackSelected]}>
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={{ width: CAROUSEL_W, height: CAROUSEL_H }} resizeMode="cover" />
+          {showImg ? (
+            <Image source={barberImageSrc(item.imageUrl)!} style={{ width: CAROUSEL_W, height: CAROUSEL_H }} resizeMode="cover" onError={() => markFailed(item.id)} />
           ) : (
             <View style={{ width: CAROUSEL_W, height: CAROUSEL_H, backgroundColor: colors.barberColors[item.colorIndex % colors.barberColors.length] }} />
           )}
@@ -209,7 +260,7 @@ function BarberCardStack({ barbers: bbs, selected, onSelect }: {
           {isSel && (
             <Animated.View style={styles.cardSelTag}>
               <Feather name="check" size={11} color={colors.onAccent} />
-              <Text style={styles.cardSelText}>Selected</Text>
+                <Text style={styles.cardSelText}>Выбран</Text>
             </Animated.View>
           )}
           {isSel && (
@@ -218,7 +269,7 @@ function BarberCardStack({ barbers: bbs, selected, onSelect }: {
         </Animated.View>
       </TouchableOpacity>
     );
-  }, [selected, onSelect, scrollX]);
+  }, [selected, onSelect, scrollX, failedCards, markFailed]);
 
   return (
     <View>
@@ -235,6 +286,10 @@ function BarberCardStack({ barbers: bbs, selected, onSelect }: {
         contentContainerStyle={{ paddingHorizontal: CONTENT_PAD }}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: false })}
         scrollEventThrottle={16}
+        windowSize={3}
+        maxToRenderPerBatch={5}
+        initialNumToRender={3}
+        getItemLayout={(_, index) => ({ length: CAROUSEL_W, offset: CAROUSEL_W * index, index })}
       />
     </View>
   );
@@ -243,20 +298,32 @@ function BarberCardStack({ barbers: bbs, selected, onSelect }: {
 function MeterOrb({ count, total }: { count: number; total: number }) {
   const arc = useRef(new Animated.Value(0)).current;
   const pulsing = useRef(new Animated.Value(1)).current;
+  const pulseRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     Animated.spring(arc, { toValue: count > 0 ? 1 : 0, friction: 7, tension: 60, useNativeDriver: true }).start();
+    if (pulseRef.current) {
+      pulseRef.current.stop();
+      pulseRef.current = null;
+    }
     if (count > 0) {
-      Animated.loop(
+      pulseRef.current = Animated.loop(
         Animated.sequence([
           Animated.timing(pulsing, { toValue: 1.08, duration: 1800, useNativeDriver: true }),
           Animated.timing(pulsing, { toValue: 1, duration: 1800, useNativeDriver: true }),
         ]),
         { iterations: -1 }
-      ).start();
+      );
+      pulseRef.current.start();
     } else {
       pulsing.setValue(1);
     }
+    return () => {
+      if (pulseRef.current) {
+        pulseRef.current.stop();
+        pulseRef.current = null;
+      }
+    };
   }, [count]);
 
   return (
@@ -265,7 +332,7 @@ function MeterOrb({ count, total }: { count: number; total: number }) {
         <Animated.View style={[styles.orbFill, { opacity: arc }]} />
         <View style={styles.orbCenter}>
           <Text style={styles.orbCount}>{count}</Text>
-          <Text style={styles.orbLabel}>selected</Text>
+          <Text style={styles.orbLabel}>выбрано</Text>
         </View>
       </View>
     </Animated.View>
@@ -275,31 +342,34 @@ function MeterOrb({ count, total }: { count: number; total: number }) {
 export default function BookingScreen() {
   const route = useRoute<Route>();
   const navigation = useNavigation<Nav>();
-  const { state, selectService, selectBarber, selectDate, selectTime, nextStep, prevStep, reset, submitBooking } = useBooking();
+  const { state, selectService, selectBarber, selectAnyBarber, selectDate, selectTime, nextStep, prevStep, reset, submitBooking } = useBooking();
   const { addAppointment } = useApp();
   const { data: services } = useServices();
   const { data: barbers } = useBarbers();
-  const [activeCat, setActiveCat] = useState('All');
+  const insets = useSafeAreaInsets();
+  const [activeCat, setActiveCat] = useState('Все');
   const [showSparkle, setShowSparkle] = useState(false);
+  const [summaryImgFailed, setSummaryImgFailed] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const sealScale = useRef(new Animated.Value(0)).current;
-  const bgOpacity = useRef(new Animated.Value(0)).current;
   const stepBg = useRef(new Animated.Value(0)).current;
+
+  const today = useMemo(() => getDayNames()[0]?.fullDate, []);
 
   useEffect(() => {
     if (route.params?.preselectedBarber) selectBarber(route.params.preselectedBarber);
+    selectDate(today);
     return () => reset();
-  }, []);
+  }, [route.params?.preselectedBarber, selectBarber, selectDate, today, reset]);
 
   useEffect(() => {
     slideAnim.setValue(0);
     Animated.spring(slideAnim, { toValue: 1, friction: 9, tension: 55, useNativeDriver: true }).start();
     Animated.timing(progressAnim, { toValue: (state.currentStep - 1) / 3, duration: 500, useNativeDriver: false }).start();
-    Animated.timing(bgOpacity, { toValue: 1, duration: 400, useNativeDriver: false }).start();
-    Animated.timing(stepBg, { toValue: state.currentStep, duration: 600, useNativeDriver: false }).start();
+    Animated.timing(stepBg, { toValue: state.currentStep, duration: 600, useNativeDriver: true }).start();
 
     if (state.currentStep === 4) {
       setShowSparkle(true);
@@ -308,70 +378,117 @@ export default function BookingScreen() {
     if (state.currentStep > 1) scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [state.currentStep]);
 
-  const totalPrice = state.selectedServices.reduce((sum, s) => sum + s.price, 0);
-  const totalDuration = state.selectedServices.reduce((sum, s) => sum + s.duration, 0);
-  const today = getDayNames()[0]?.fullDate;
-  const isPremiumCat = activeCat === 'Premium';
-  const filtered = activeCat === 'All' ? services : services.filter((s) => getServiceCategory(s) === activeCat);
+  const totalPrice = useMemo(() => state.selectedServices.reduce((sum, s) => sum + s.price, 0), [state.selectedServices]);
+  const totalDuration = useMemo(() => state.selectedServices.reduce((sum, s) => sum + s.duration, 0), [state.selectedServices]);
 
-  const premiumService: Service = {
+  const [displaySlots, setDisplaySlots] = useState<{ time: string; available: boolean }[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+
+  const barberForSlots = useMemo(() => {
+    if (state.selectedBarber) return state.selectedBarber;
+    if (state.anyBarber && barbers.length > 0) return barbers[0];
+    return null;
+  }, [state.selectedBarber, state.anyBarber, barbers]);
+
+  useEffect(() => {
+    if (!barberForSlots || !state.selectedDate) return;
+    setSlotsLoading(true);
+    api.getTimeSlotsForBarber(barberForSlots.id, state.selectedDate).then((result) => {
+      if (result.data) {
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMin = now.getMinutes();
+        const isToday = state.selectedDate === today;
+        setDisplaySlots(
+          result.data.filter((slot) => {
+            if (!isToday) return true;
+            const [h, m] = slot.time.split(':').map(Number);
+            return h > currentHour || (h === currentHour && m >= currentMin);
+          })
+        );
+      }
+    }).finally(() => setSlotsLoading(false));
+  }, [barberForSlots?.id, state.selectedDate, today]);
+  const filtered = useMemo(() =>
+    activeCat === 'Все' ? services : services.filter((s) => getServiceCategory(s) === activeCat),
+    [activeCat, services]
+  );
+
+  const premiumService: Service = useMemo(() => ({
     id: 'premium-private-room',
-    name: 'Private Room Haircut',
+    name: 'Стрижка в VIP-комнате',
     price: 250000,
     duration: 60,
     icon: 'award',
-    description: 'Exclusive premium haircut in a private VIP room',
-    image: undefined,
-  };
+    description: 'Эксклюзивная премиальная стрижка в отдельном VIP-кабинете',
+    image: require('../../assets/services/premium.png'),
+  }), []);
 
-  const canProceed = () => {
+  const proceedDisabled = useMemo(() => {
     switch (state.currentStep) {
-      case 1: return state.selectedServices.length > 0;
-      case 2: return state.selectedBarber !== null;
-      case 3: return state.selectedDate !== null && state.selectedTime !== null;
-      default: return false;
+      case 1: return state.selectedServices.length === 0;
+      case 2: return state.selectedBarber === null && !state.anyBarber;
+      case 3: return state.selectedDate === null || state.selectedTime === null;
+      default: return true;
     }
-  };
+  }, [state.currentStep, state.selectedServices.length, state.selectedBarber, state.selectedDate, state.selectedTime, state.anyBarber]);
 
   const handleDone = async () => {
-    if (!state.selectedBarber || !state.selectedDate || !state.selectedTime) return;
-    const error = await submitBooking();
-    if (!error) {
-      await addAppointment({
-        barberId: state.selectedBarber.id, barberName: state.selectedBarber.name,
-        serviceNames: state.selectedServices.map((s) => s.name),
-        date: state.selectedDate, time: state.selectedTime, status: 'upcoming',
-      });
-      nextStep();
-    }
+    if (!state.selectedDate || !state.selectedTime) return;
+    const barberId = state.selectedBarber?.id || barbers[0]?.id;
+    if (!barberId) return;
+    const durationInSeconds = totalDuration * 60;
+    const datetime = `${state.selectedDate}T${state.selectedTime}:00`;
+    const submitError = await submitBooking({
+      barberId,
+      serviceIds: state.selectedServices.map((s) => s.id),
+      datetime,
+      duration: durationInSeconds || 3600,
+    });
+    if (submitError) return;
+    const barberName = state.selectedBarber?.name || (state.anyBarber ? barbers[0]?.name : '');
+    const serviceNames = state.selectedServices.map((s) => s.name);
+    const err = await addAppointment({
+      barberId,
+      barberName,
+      serviceIds: state.selectedServices.map((s) => s.id),
+      serviceNames,
+      datetime,
+      duration: durationInSeconds || 3600,
+    });
+    if (err) return;
+    nextStep();
   };
 
   const handleClose = () => { reset(); navigation.goBack(); };
   const handleBackToHome = () => { reset(); navigation.popToTop(); };
 
   const bookingId = `M19-${String(Date.now()).slice(-6)}`;
-  const slideStyle = { opacity: slideAnim, transform: [{ translateX: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] };
+  const slideStyle = useMemo(() => ({
+    opacity: slideAnim,
+    transform: [{ translateX: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }],
+  }), [slideAnim]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <Animated.View style={[styles.ambientBg, {
         opacity: stepBg.interpolate({ inputRange: [1, 2, 3, 4], outputRange: [0.04, 0.03, 0.02, 0.05] }),
       }]} />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
         <View style={styles.headerLeft}>
           {state.currentStep < 4 && (
-            <TouchableOpacity onPress={state.currentStep > 1 ? prevStep : handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity onPress={state.currentStep > 1 ? prevStep : handleClose} style={styles.closeBtn}>
               <Feather name={state.currentStep > 1 ? 'arrow-left' : 'x'} size={20} color={colors.text} />
             </TouchableOpacity>
           )}
           <Text style={styles.headerTitle}>
-            {state.currentStep === 1 ? 'Menu' : state.currentStep === 2 ? 'Artist' : state.currentStep === 3 ? 'Time' : 'Seal'}
+            {state.currentStep === 1 ? 'Меню' : state.currentStep === 2 ? 'Мастер' : state.currentStep === 3 ? 'Время' : 'Печать'}
           </Text>
         </View>
         {state.currentStep < 4 && (
           <View style={styles.stepBadge}>
-            <Text style={styles.stepBadgeText}>Step {state.currentStep}/3</Text>
+            <Text style={styles.stepBadgeText}>Шаг {state.currentStep}/3</Text>
           </View>
         )}
       </View>
@@ -384,8 +501,20 @@ export default function BookingScreen() {
         <Animated.View style={slideStyle}>
           {state.currentStep === 1 && (
             <View>
-              <Text style={styles.stepTitle}>What brings you in?</Text>
-              <Text style={styles.stepSub}>Select one or more services to build your experience</Text>
+              <Text style={styles.stepTitle}>Что вас интересует?</Text>
+              <Text style={styles.stepSub}>Выберите одну или несколько услуг</Text>
+
+              <PremiumCard
+                service={premiumService}
+                selected={state.selectedServices.some((x) => x.id === 'premium-private-room')}
+                onPress={() => selectService(premiumService)}
+              />
+
+              <View style={styles.otherDivider}>
+                <View style={styles.otherLine} />
+                <Text style={styles.otherLabel}>ДРУГИЕ УСЛУГИ</Text>
+                <View style={styles.otherLine} />
+              </View>
 
               <View style={styles.categoryRail}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
@@ -395,19 +524,11 @@ export default function BookingScreen() {
                 </ScrollView>
               </View>
 
-              {isPremiumCat ? (
-                <PremiumCard
-                  selected={state.selectedServices.some((x) => x.id === 'premium-private-room')}
-                  onPress={() => selectService(premiumService)}
-                  index={0}
-                />
-              ) : (
-                <View style={styles.serviceGrid}>
-                  {filtered.map((s, i) => (
-                    <ServiceCard key={s.id} service={s} index={i} selected={state.selectedServices.some((x) => x.id === s.id)} onPress={() => selectService(s)} />
-                  ))}
-                </View>
-              )}
+              <View style={styles.serviceGrid}>
+                {filtered.map((s, i) => (
+                  <ServiceCard key={s.id} service={s} index={i} selected={state.selectedServices.some((x) => x.id === s.id)} onPress={() => selectService(s)} />
+                ))}
+              </View>
 
               {state.selectedServices.length > 0 && (
                 <Animated.View style={[styles.tokenStrip, cardShadow]}>
@@ -427,7 +548,7 @@ export default function BookingScreen() {
                   </View>
                   <View style={styles.tokenTotal}>
                     <Text style={styles.tokenPrice}>{formatPrice(totalPrice)}</Text>
-                    <Text style={styles.tokenDur}>{totalDuration} min total</Text>
+                    <Text style={styles.tokenDur}>{totalDuration} мин всего</Text>
                   </View>
                 </Animated.View>
               )}
@@ -436,9 +557,9 @@ export default function BookingScreen() {
 
           {state.currentStep === 2 && (
             <View>
-              <Text style={styles.stepTitle}>Choose your master</Text>
+              <Text style={styles.stepTitle}>Выберите мастера</Text>
               <Text style={styles.stepSub}>
-                {route.params?.preselectedBarber ? `Pre-selected: ${route.params.preselectedBarber.name}` : 'Swipe through the deck, then tap to select'}
+                {route.params?.preselectedBarber ? `Предвыбран: ${route.params.preselectedBarber.name}` : 'Листайте карусель и нажмите для выбора'}
               </Text>
 
               <View style={{ marginHorizontal: -CONTENT_PAD, marginBottom: spacing.xl }}>
@@ -449,11 +570,10 @@ export default function BookingScreen() {
                 barbers={barbers}
                 selected={state.selectedBarber}
                 onSelect={selectBarber}
-                onCarouselScroll={(idx) => {}}
               />
 
               <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-                <TouchableOpacity onPress={() => selectBarber(null)} style={[styles.portalBtn, !state.selectedBarber && styles.portalBtnActive]} activeOpacity={0.7}>
+                <TouchableOpacity onPress={state.selectedBarber ? () => selectBarber(null) : selectAnyBarber} style={[styles.portalBtn, state.anyBarber && styles.portalBtnActive]} activeOpacity={0.7}>
                   {state.selectedBarber ? (
                     <Feather name="user-x" size={14} color={colors.textSecondary} />
                   ) : (
@@ -461,8 +581,8 @@ export default function BookingScreen() {
                       <View style={styles.portalDot} />
                     </View>
                   )}
-                  <Text style={[styles.portalText, !state.selectedBarber && styles.portalTextActive]}>
-                    {state.selectedBarber ? 'Deselect' : 'Any available master'}
+                  <Text style={[styles.portalText, state.anyBarber && styles.portalTextActive]}>
+                    {state.selectedBarber ? 'Отменить' : 'Любой свободный мастер'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -471,13 +591,27 @@ export default function BookingScreen() {
 
           {state.currentStep === 3 && (
             <View>
-              <Text style={styles.stepTitle}>Pick your time</Text>
-              <Text style={styles.stepSub}>Select a date and an available slot</Text>
+              <Text style={styles.stepTitle}>Выберите время</Text>
+              <Text style={styles.stepSub}>Выберите дату и свободный слот</Text>
+
+              {state.selectedBarber && (
+                <View style={styles.barberSummary}>
+                  {state.selectedBarber.imageUrl && !summaryImgFailed ? (
+                    <Image source={barberImageSrc(state.selectedBarber.imageUrl)!} style={styles.barberSummaryImg} onError={() => setSummaryImgFailed(true)} />
+                  ) : (
+                    <View style={[styles.barberSummaryImg, { backgroundColor: colors.barberColors[state.selectedBarber.colorIndex % colors.barberColors.length] }]} />
+                  )}
+                  <View style={styles.barberSummaryInfo}>
+                    <Text style={styles.barberSummaryLabel}>Мастер</Text>
+                    <Text style={styles.barberSummaryName}>{state.selectedBarber.name}</Text>
+                  </View>
+                </View>
+              )}
 
               <DayPicker selected={state.selectedDate || today} onSelect={selectDate} />
 
               <View style={styles.slotList}>
-                {getTimeSlots().map((slot) => (
+                {displaySlots.map((slot) => (
                   <TimeSlot
                     key={slot.time}
                     time={slot.time}
@@ -498,8 +632,8 @@ export default function BookingScreen() {
               <WaxStamp scale={sealScale} />
 
               <Animated.View style={{ opacity: sealScale, transform: [{ translateY: sealScale.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }], alignItems: 'center' }}>
-                <Text style={styles.sealTitle}>Appointment sealed</Text>
-                <Text style={styles.sealSub}>{state.selectedDate ? formatDate(state.selectedDate) : ''} at {state.selectedTime}</Text>
+                <Text style={styles.sealTitle}>Запись подтверждена</Text>
+                <Text style={styles.sealSub}>{state.selectedDate ? formatDate(state.selectedDate) : ''} в {state.selectedTime}</Text>
               </Animated.View>
 
               <Animated.View style={[styles.sealCard, cardShadow, { opacity: sealScale.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0.3, 1] }) }]}>
@@ -516,36 +650,36 @@ export default function BookingScreen() {
                   {state.selectedBarber && (
                     <View style={styles.sealRow}>
                       <Feather name="user" size={14} color={colors.cardTextSecondary} />
-                      <Text style={styles.sealLabel}>Artist</Text>
+                      <Text style={styles.sealLabel}>Мастер</Text>
                       <Text style={styles.sealValue}>{state.selectedBarber.name}</Text>
                     </View>
                   )}
                   <View style={styles.sealRow}>
                     <Feather name="scissors" size={14} color={colors.cardTextSecondary} />
-                    <Text style={styles.sealLabel}>Service</Text>
+                    <Text style={styles.sealLabel}>Услуга</Text>
                     <Text style={styles.sealValue}>{state.selectedServices.map((s) => s.name).join(', ')}</Text>
                   </View>
                   <View style={styles.sealRow}>
                     <Feather name="calendar" size={14} color={colors.cardTextSecondary} />
-                    <Text style={styles.sealLabel}>Date</Text>
+                    <Text style={styles.sealLabel}>Дата</Text>
                     <Text style={styles.sealValue}>{state.selectedDate ? formatDate(state.selectedDate) : ''}</Text>
                   </View>
                   <View style={styles.sealRow}>
                     <Feather name="clock" size={14} color={colors.cardTextSecondary} />
-                    <Text style={styles.sealLabel}>Time</Text>
+                    <Text style={styles.sealLabel}>Время</Text>
                     <Text style={styles.sealValue}>{state.selectedTime}</Text>
                   </View>
                   <View style={[styles.sealRow, styles.sealRowTotal]}>
                     <Feather name="credit-card" size={14} color={colors.cardTextSecondary} />
-                    <Text style={styles.sealLabel}>Total</Text>
+                    <Text style={styles.sealLabel}>Итого</Text>
                     <Text style={styles.sealValueTotal}>{formatPrice(totalPrice)}</Text>
                   </View>
                 </Animated.View>
               </Animated.View>
 
               <Animated.View style={{ opacity: sealScale, width: '100%', gap: spacing.sm }}>
-                <Button title="Add to calendar" variant="outline" fullWidth onPress={() => {}} />
-                <Button title="Back to home" fullWidth onPress={handleBackToHome} />
+                <Button title="Добавить в календарь" variant="outline" fullWidth onPress={() => {}} />
+                <Button title="На главную" fullWidth onPress={handleBackToHome} />
               </Animated.View>
             </View>
           )}
@@ -557,7 +691,7 @@ export default function BookingScreen() {
           <View style={styles.footerLeft}>
             {state.selectedServices.length > 0 && (
               <View style={styles.footerSummary}>
-                <Text style={styles.footerCount}>{state.selectedServices.length} service{state.selectedServices.length > 1 ? 's' : ''}</Text>
+                <Text style={styles.footerCount}>{state.selectedServices.length} {state.selectedServices.length === 1 ? 'услуга' : 'услуг'}</Text>
                 <Text style={styles.footerTotal}>{formatPrice(totalPrice)}</Text>
               </View>
             )}
@@ -568,8 +702,8 @@ export default function BookingScreen() {
               </View>
             )}
           </View>
-          <TouchableOpacity onPress={state.currentStep === 3 ? handleDone : nextStep} disabled={!canProceed()} activeOpacity={0.85} style={[styles.cta, !canProceed() && styles.ctaDisabled]}>
-            <Text style={styles.ctaText}>{state.currentStep === 3 ? 'Seal booking' : 'Continue'}</Text>
+          <TouchableOpacity onPress={state.currentStep === 3 ? handleDone : nextStep} disabled={proceedDisabled} activeOpacity={0.85} style={[styles.cta, proceedDisabled && styles.ctaDisabled]}>
+            <Text style={styles.ctaText}>{state.currentStep === 3 ? 'Подтвердить' : 'Далее'}</Text>
             <Feather name={state.currentStep === 3 ? 'check' : 'arrow-right'} size={18} color={colors.onAccent} />
           </TouchableOpacity>
         </View>
@@ -583,9 +717,10 @@ const styles = StyleSheet.create({
   ambientBg: { position: 'absolute', top: -120, left: -60, right: -60, height: 250, backgroundColor: colors.accent, borderRadius: 250 / 2 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: CONTENT_PAD, paddingTop: spacing.lg, paddingBottom: spacing.sm,
+    paddingHorizontal: CONTENT_PAD, paddingBottom: spacing.md,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  closeBtn: { padding: spacing.sm, marginLeft: -spacing.sm },
   headerTitle: { fontSize: fontSize.xl, fontFamily: fonts.display, color: colors.text, letterSpacing: 0.5 },
   stepBadge: {
     backgroundColor: 'rgba(255,255,255,0.06)',
@@ -601,6 +736,9 @@ const styles = StyleSheet.create({
   stepTitle: { fontSize: fontSize.xxl, fontFamily: fonts.display, color: colors.text, marginBottom: spacing.xs },
   stepSub: { fontSize: fontSize.sm, fontFamily: fonts.bodyLight, color: colors.textSecondary, marginBottom: spacing.xl, lineHeight: 18 },
   categoryRail: { marginBottom: spacing.lg, marginLeft: -CONTENT_PAD, marginRight: -CONTENT_PAD, paddingHorizontal: CONTENT_PAD },
+  otherDivider: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md, marginBottom: spacing.lg },
+  otherLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  otherLabel: { fontSize: fontSize.xs, fontFamily: fonts.body, fontWeight: '600', color: colors.textTertiary, letterSpacing: 1.5 },
   serviceGrid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -spacing.xs / 2 },
 
   tokenStrip: {
@@ -655,6 +793,15 @@ const styles = StyleSheet.create({
   portalText: { fontSize: fontSize.sm, fontFamily: fonts.bodyLight, color: colors.textSecondary },
   portalTextActive: { color: colors.onAccent, fontWeight: '600' },
 
+  barberSummary: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: colors.card, borderRadius: borderRadius.lg,
+    padding: spacing.md, marginBottom: spacing.lg,
+  },
+  barberSummaryImg: { width: 40, height: 40, borderRadius: 20 },
+  barberSummaryInfo: { flex: 1 },
+  barberSummaryLabel: { fontSize: fontSize.xs, fontFamily: fonts.bodyLight, color: colors.textTertiary },
+  barberSummaryName: { fontSize: fontSize.md, fontFamily: fonts.body, fontWeight: '600', color: colors.text },
   slotList: { marginTop: spacing.sm },
 
   sealWrap: { alignItems: 'center', paddingTop: spacing.xxl },

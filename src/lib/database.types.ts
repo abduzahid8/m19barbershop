@@ -36,6 +36,11 @@ export interface Database {
         Insert: Omit<TimeSlotRow, 'id'>;
         Update: Partial<Omit<TimeSlotRow, 'id'>>;
       };
+      yandex_reviews: {
+        Row: YandexReviewRow;
+        Insert: Omit<YandexReviewRow, 'id' | 'created_at'>;
+        Update: Partial<Omit<YandexReviewRow, 'id' | 'created_at'>>;
+      };
     };
   };
 }
@@ -111,4 +116,18 @@ export interface TimeSlotRow {
   date: string;
   available: boolean;
   period: 'morning' | 'afternoon' | 'evening';
+}
+
+export interface YandexReviewRow {
+  id: string;
+  yandex_id: string;
+  author: string;
+  rating: number;
+  text: string;
+  date: string;
+  author_avatar_url: string | null;
+  likes_count: number;
+  owner_reply: string | null;
+  owner_reply_date: string | null;
+  created_at: string;
 }

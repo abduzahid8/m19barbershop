@@ -28,6 +28,7 @@ function SwipeCard({ uri, onSwipe, index, total }: { uri: AssetId; onSwipe: () =
   const cardScale = useRef(new Animated.Value(1)).current;
   const enterAnim = useRef(new Animated.Value(0)).current;
   const locked = useRef(false);
+  const [swipeFailed, setSwipeFailed] = useState(false);
 
   useEffect(() => {
     locked.current = false;
@@ -83,7 +84,13 @@ function SwipeCard({ uri, onSwipe, index, total }: { uri: AssetId; onSwipe: () =
       ]}
       {...panResponder.panHandlers}
     >
-      <Image source={imgSrc(uri)} style={styles.swipeCardImg} resizeMode="cover" />
+      {!swipeFailed ? (
+        <Image source={imgSrc(uri)} style={styles.swipeCardImg} resizeMode="cover" onError={() => setSwipeFailed(true)} />
+      ) : (
+        <View style={[styles.swipeCardImg, { backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' }]}>
+          <Feather name="image" size={32} color="rgba(255,255,255,0.2)" />
+        </View>
+      )}
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={styles.swipeCardGrad} pointerEvents="none" />
       <View style={styles.swipeCardBadge}>
         <Text style={styles.swipeCardBadgeText}>{index + 1} / {total}</Text>
@@ -96,9 +103,14 @@ export default function PortfolioGallery({ images, colorIndex }: PortfolioGaller
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [startIndex, setStartIndex] = useState(0);
   const [deck, setDeck] = useState<AssetId[]>([]);
+  const [failedImgs, setFailedImgs] = useState<Set<AssetId>>(new Set());
   const bgColor = colors.barberColors[colorIndex % colors.barberColors.length];
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pressScale = useRef(new Animated.Value(1)).current;
+
+  const markFailed = useCallback((id: AssetId) => {
+    setFailedImgs((prev) => { const next = new Set(prev); next.add(id); return next; });
+  }, []);
 
   useEffect(() => {
     const pulse = Animated.loop(
@@ -135,11 +147,11 @@ export default function PortfolioGallery({ images, colorIndex }: PortfolioGaller
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={[styles.headerDot, { backgroundColor: bgColor }]} />
-          <Text style={styles.title}>Portfolio</Text>
-          <Text style={styles.count}>{images.length} works</Text>
+          <Text style={styles.title}>Портфолио</Text>
+          <Text style={styles.count}>{images.length} работ</Text>
         </View>
         <TouchableOpacity style={styles.viewAllBtn} onPress={() => openLightbox(0)} activeOpacity={0.7}>
-          <Text style={styles.viewAllText}>View all</Text>
+          <Text style={styles.viewAllText}>Все</Text>
           <Feather name="arrow-right" size={14} color={colors.text} />
         </TouchableOpacity>
       </View>
@@ -151,16 +163,22 @@ export default function PortfolioGallery({ images, colorIndex }: PortfolioGaller
         activeOpacity={1}
       >
         <Animated.View style={[styles.heroCard, { transform: [{ scale: Animated.multiply(pulseAnim, pressScale) }] }]}>
-          <Image source={imgSrc(images[0])} style={styles.heroCardImg} resizeMode="cover" />
+          {!failedImgs.has(images[0]) ? (
+          <Image source={imgSrc(images[0])} style={styles.heroCardImg} resizeMode="cover" onError={() => markFailed(images[0])} />
+          ) : (
+          <View style={[styles.heroCardImg, { backgroundColor: bgColor, alignItems: 'center', justifyContent: 'center' }]}>
+            <Feather name="image" size={32} color={colors.textTertiary} />
+          </View>
+          )}
           <View style={styles.heroShadow} />
           <View style={styles.heroVignette} />
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.heroCardGrad} pointerEvents="none" />
           <View style={styles.heroCardOverlay}>
             <View style={styles.heroCardBadge}>
               <Feather name="image" size={12} color={colors.white} />
-              <Text style={styles.heroCardBadgeText}>{images.length} works</Text>
+                <Text style={styles.heroCardBadgeText}>{images.length} работ</Text>
             </View>
-            <Text style={styles.heroCardTitle}>Tap to explore</Text>
+            <Text style={styles.heroCardTitle}>Нажмите для просмотра</Text>
           </View>
           <Animated.View style={[styles.heroCardArrow, { transform: [{ scale: pulseAnim }] }]}>
             <Feather name="arrow-up-right" size={16} color={colors.white} />
@@ -180,12 +198,20 @@ export default function PortfolioGallery({ images, colorIndex }: PortfolioGaller
           <View style={styles.stackWrap}>
             {deck.length > 1 && (
               <View style={[styles.stackCard, { transform: [{ scale: STACK_SCALE }, { translateY: STACK_OFFSET }] }]}>
-                <Image source={imgSrc(deck[1])} style={styles.stackCardImg} resizeMode="cover" />
+                {!failedImgs.has(deck[1]) ? (
+                  <Image source={imgSrc(deck[1])} style={styles.stackCardImg} resizeMode="cover" onError={() => markFailed(deck[1])} />
+                ) : (
+                  <View style={[styles.stackCardImg, { backgroundColor: bgColor, opacity: 0.3 }]} />
+                )}
               </View>
             )}
             {deck.length > 2 && (
               <View style={[styles.stackCard, { transform: [{ scale: STACK_SCALE * STACK_SCALE }, { translateY: STACK_OFFSET * 2 }] }]}>
-                <Image source={imgSrc(deck[2])} style={styles.stackCardImg} resizeMode="cover" />
+                {!failedImgs.has(deck[2]) ? (
+                  <Image source={imgSrc(deck[2])} style={styles.stackCardImg} resizeMode="cover" onError={() => markFailed(deck[2])} />
+                ) : (
+                  <View style={[styles.stackCardImg, { backgroundColor: bgColor, opacity: 0.3 }]} />
+                )}
               </View>
             )}
 
@@ -202,14 +228,14 @@ export default function PortfolioGallery({ images, colorIndex }: PortfolioGaller
             {deck.length === 0 && (
               <View style={styles.stackEmpty}>
                 <Feather name="refresh-cw" size={28} color="rgba(255,255,255,0.2)" />
-                <Text style={styles.stackEmptyText}>All viewed</Text>
+                <Text style={styles.stackEmptyText}>Все просмотрено</Text>
               </View>
             )}
           </View>
 
           <View style={styles.hint}>
             <Feather name="arrow-left" size={12} color="rgba(255,255,255,0.2)" />
-            <Text style={styles.hintText}>Swipe to browse</Text>
+            <Text style={styles.hintText}>Листайте для просмотра</Text>
             <Feather name="arrow-right" size={12} color="rgba(255,255,255,0.2)" />
           </View>
         </View>

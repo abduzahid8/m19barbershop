@@ -1,10 +1,11 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Dimensions, FlatList, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Dimensions, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Barber } from '../data';
+import { barberImageSrc } from '../data';
 import { colors, spacing, fontSize, fonts, borderRadius, cardShadow } from '../theme';
 import BarberCard from '../components/BarberCard';
 import Shimmer from '../components/Shimmer';
@@ -50,14 +51,16 @@ function truncateText(text: string, maxWords: number) {
 }
 
 function HeroCard({ barber, index, scrollX }: { barber: Barber; index: number; scrollX: Animated.Value }) {
+  const [heroFailed, setHeroFailed] = useState(false);
   const inputRange = [(index - 1) * HERO_W, index * HERO_W, (index + 1) * HERO_W];
   const scale = scrollX.interpolate({ inputRange, outputRange: [0.88, 1, 0.88], extrapolate: 'clamp' });
   const opacity = scrollX.interpolate({ inputRange, outputRange: [0.5, 1, 0.5], extrapolate: 'clamp' });
+  const showHero = barber.imageUrl && !heroFailed;
 
   return (
     <Animated.View style={[{ width: HERO_W, height: HERO_H, borderRadius: borderRadius.xl, overflow: 'hidden' }, { transform: [{ scale }], opacity }]}>
-      {barber.imageUrl ? (
-        <Image source={{ uri: barber.imageUrl }} style={{ width: HERO_W, height: HERO_H }} resizeMode="cover" />
+      {showHero ? (
+        <Image source={barberImageSrc(barber.imageUrl)!} style={{ width: HERO_W, height: HERO_H }} resizeMode="cover" onError={() => setHeroFailed(true)} />
       ) : (
         <View style={{ width: HERO_W, height: HERO_H, backgroundColor: colors.barberColors[barber.colorIndex % colors.barberColors.length] }} />
       )}
@@ -73,7 +76,7 @@ function HeroCard({ barber, index, scrollX }: { barber: Barber; index: number; s
           <Text style={styles.heroStar}>★</Text>
           <Text style={styles.heroRating}>{barber.rating}</Text>
           <Text style={styles.heroDot}>·</Text>
-          <Text style={styles.heroReviews}>{barber.reviewCount} reviews</Text>
+          <Text style={styles.heroReviews}>{barber.reviewCount} отзывов</Text>
         </View>
         <Text style={styles.heroBio} numberOfLines={2}>{truncateText(barber.bio, 8)}</Text>
       </View>
@@ -146,7 +149,7 @@ export default function BarbersScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Animated.View style={[styles.header, { opacity: loadingFade.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }]}>
-        <Text style={styles.title}>Our barbers</Text>
+        <Text style={styles.title}>Наши барберы</Text>
       </Animated.View>
 
       <View style={{ flex: 1 }}>
@@ -170,6 +173,9 @@ export default function BarbersScreen() {
                 contentContainerStyle={{ paddingHorizontal: CONTENT_PAD }}
                 onScroll={onScroll}
                 scrollEventThrottle={16}
+                windowSize={3}
+                maxToRenderPerBatch={5}
+                initialNumToRender={3}
               />
               <Dots count={barbers.length} scrollX={scrollX} />
             </View>
@@ -179,12 +185,12 @@ export default function BarbersScreen() {
               onPress={() => navigation.navigate('Booking', undefined)}
               activeOpacity={0.85}
             >
-              <Text style={styles.inlineBookText}>Book now</Text>
+              <Text style={styles.inlineBookText}>Записаться</Text>
             </TouchableOpacity>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>The team</Text>
+              <Text style={styles.dividerText}>Команда</Text>
               <View style={styles.dividerLine} />
             </View>
 

@@ -3,6 +3,7 @@ import type {
   ServiceRow,
   AppointmentRow,
   ReviewRow,
+  YandexReviewRow,
 } from '../lib/database.types';
 import type { Barber, Service, Appointment, ShopReview } from '../data';
 
@@ -70,4 +71,21 @@ export function mapShopReview(row: ReviewRow): ShopReview {
 
 export function mapShopReviews(rows: ReviewRow[]): ShopReview[] {
   return rows.map(mapShopReview);
+}
+
+export function mapYandexReview(row: YandexReviewRow): ShopReview {
+  return {
+    id: row.id,
+    author: row.author,
+    rating: row.rating,
+    text: row.text,
+    date: row.date,
+    source: 'yandex',
+    authorAvatarUrl: row.author_avatar_url || undefined,
+    likesCount: row.likes_count,
+  };
+}
+
+export function mapYandexReviews(rows: YandexReviewRow[]): ShopReview[] {
+  return rows.map(mapYandexReview);
 }

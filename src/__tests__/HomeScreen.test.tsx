@@ -31,19 +31,19 @@ describe('HomeScreen', () => {
 
   it('renders stats', () => {
     render(<HomeScreen />);
-    expect(screen.getByText('Barbers')).toBeTruthy();
-    expect(screen.getByText('Services')).toBeTruthy();
-    expect(screen.getByText('Years')).toBeTruthy();
+    expect(screen.getByText('Барберы')).toBeTruthy();
+    expect(screen.getByText('Услуги')).toBeTruthy();
+    expect(screen.getByText('Лет')).toBeTruthy();
   });
 
   it('renders book now button', () => {
     render(<HomeScreen />);
-    expect(screen.getByText('Book now')).toBeTruthy();
+    expect(screen.getByText('Записаться')).toBeTruthy();
   });
 
   it('navigates to Booking on Book now press', () => {
     render(<HomeScreen />);
-    const bookBtn = screen.getByText('Book now');
+    const bookBtn = screen.getByText('Записаться');
     fireEvent.press(bookBtn);
     expect(mockNavigate).toHaveBeenCalledWith('Booking', { preselectedBarber: undefined });
   });

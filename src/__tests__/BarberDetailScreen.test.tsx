@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native';
+import { render, screen, waitFor } from '@testing-library/react-native';
 import BarberDetailScreen from '../screens/BarberDetailScreen';
 
 jest.mock('expo-linear-gradient', () => ({
@@ -13,7 +13,7 @@ jest.mock('@expo/vector-icons/Feather', () => 'Feather');
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
-const mockRoute = { params: { barberId: 'b1' } };
+const mockRoute = { params: { barberId: 'fb-barber-5' } };
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -27,22 +27,25 @@ describe('BarberDetailScreen', () => {
     mockGoBack.mockClear();
   });
 
-  it('renders barber details for valid barberId', () => {
+  it('renders barber details for valid barberId', async () => {
     render(<BarberDetailScreen />);
-    const rustamElements = screen.getAllByText('Rustam');
-    expect(rustamElements.length).toBeGreaterThan(0);
-    expect(screen.getByText('Top Barber')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getAllByText('Rustam').length).toBeGreaterThan(0);
+    });
+    expect(screen.getByText('Топ Барбер')).toBeTruthy();
   });
 
-  it('renders Book with him button for available barber', () => {
+  it('renders "Записаться к нему" button for available barber', async () => {
     render(<BarberDetailScreen />);
-    expect(screen.getByText('Book with him')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByText('Записаться к нему')).toBeTruthy();
+    });
   });
 
   it('renders error for invalid barberId', () => {
     mockRoute.params = { barberId: 'nonexistent' };
     render(<BarberDetailScreen />);
-    expect(screen.getByText('Barber not found')).toBeTruthy();
-    mockRoute.params = { barberId: 'b1' };
+    expect(screen.getByText('Барбер не найден')).toBeTruthy();
+    mockRoute.params = { barberId: 'fb-barber-5' };
   });
 });

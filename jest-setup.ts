@@ -147,6 +147,120 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
+// ---------- AuthContext ----------
+const mockUser = { id: 'test-user-id', email: 'test@example.com', name: 'Test User' };
+jest.mock('./src/contexts/AuthContext', () => {
+  const mockUseAuth = () => ({
+    user: mockUser,
+    isLoading: false,
+    isAuthenticated: true,
+    signOut: jest.fn(() => Promise.resolve()),
+    setUser: jest.fn(),
+  });
+  return {
+    __esModule: true,
+    useAuth: mockUseAuth,
+    AuthProvider: ({ children }) => children,
+  };
+});
+
+// ---------- supabase ----------
+const mockBarbers = [
+  { id: 'b1', name: 'Rustam', specialty: 'Top Barber', rating: 5, review_count: 100, bio: 'Pro barber', image_url: null, portfolio: [], color_index: 0, available: true, created_at: '2025-01-01' },
+  { id: 'b2', name: 'Avaz', specialty: 'Barber', rating: 4.9, review_count: 200, bio: 'Experienced barber', image_url: null, portfolio: [], color_index: 1, available: true, created_at: '2025-01-01' },
+];
+const mockAppointments = [
+  { id: 'a1', user_id: 'test-user-id', barber_id: 'b1', barber_name: 'Rustam', service_names: ['Haircut'], date: '2026-07-20', time: '14:00', status: 'upcoming', created_at: '2025-01-01' },
+  { id: 'a2', user_id: 'test-user-id', barber_id: 'b1', barber_name: 'Rustam', service_names: ['Beard Trim'], date: '2026-06-15', time: '10:00', status: 'completed', created_at: '2025-01-01' },
+];
+const mockReviews = [
+  { id: 'r1', user_id: null, author: 'You', rating: 5, text: 'Great shop!', date: '2026-07-01', created_at: '2025-01-01' },
+];
+const mockLoyalty = { id: 'l1', user_id: 'test-user-id', points: 50, tier: 'silver', total_visits: 3, created_at: '2025-01-01' };
+
+const tableData: Record<string, any[]> = {
+  barbers: mockBarbers,
+  appointments: mockAppointments,
+  reviews: mockReviews,
+  yandex_reviews: [],
+  loyalty_points: [mockLoyalty],
+};
+
+function mockFrom(table: string) {
+  const data = tableData[table] || [];
+  const listPromise = () => Promise.resolve({ data, error: null });
+  const singleItem = data.length > 0 ? data[0] : null;
+  const singlePromise = () => Promise.resolve({ data: singleItem, error: null });
+  const nullPromise = () => Promise.resolve({ data: null, error: null });
+
+  const insertedRecord = { id: 'inserted-id', author: 'Test', rating: 5, text: 'Great shop!', user_id: 'test-user-id', date: '2026-07-09', created_at: '2025-01-01' };
+
+  // Terminal methods (which resolve the promise)
+  const builder = {
+    order: jest.fn(listPromise),
+    single: jest.fn(singlePromise),
+    limit: jest.fn(listPromise),
+    range: jest.fn(listPromise),
+    select: jest.fn(() => builder),
+    eq: jest.fn(() => builder),
+    neq: jest.fn(() => builder),
+    gt: jest.fn(() => builder),
+    lt: jest.fn(() => builder),
+    in: jest.fn(() => builder),
+    is: jest.fn(() => builder),
+    like: jest.fn(() => builder),
+    ilike: jest.fn(() => builder),
+    match: jest.fn(() => builder),
+    filter: jest.fn(() => builder),
+    or: jest.fn(() => builder),
+    not: jest.fn(() => builder),
+    contains: jest.fn(() => builder),
+    containedBy: jest.fn(() => builder),
+    textSearch: jest.fn(() => builder),
+    insert: jest.fn(() => builder),
+    upsert: jest.fn(() => builder),
+    update: jest.fn(() => builder),
+    delete: jest.fn(() => builder),
+  };
+
+  // Override insert/update for reviews/appointments to return synthesized inserted record
+  builder.insert = jest.fn(() => {
+    const insertBuilder = { ...builder };
+    insertBuilder.select = jest.fn(() => insertBuilder);
+    insertBuilder.single = jest.fn(() => Promise.resolve({ data: insertedRecord, error: null }));
+    Object.assign(insertBuilder, {
+      then: (resolve: any) => Promise.resolve({ data: insertedRecord, error: null }).then(resolve),
+    });
+    return insertBuilder;
+  });
+
+  // Make the builder itself thenable so `await anyChain` works for arbitrary depth
+  Object.assign(builder, {
+    then: (resolve: any) => listPromise().then(resolve),
+  });
+
+  return builder;
+}
+
+jest.mock('./src/lib/supabase', () => ({
+  supabase: {
+    auth: {
+      signInWithOtp: jest.fn(),
+      verifyOtp: jest.fn(),
+      getSession: jest.fn(() => Promise.resolve({ data: { session: null }, error: null })),
+      signOut: jest.fn(),
+      onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+    },
+    from: jest.fn((table: string) => mockFrom(table)),
+    storage: {
+      from: jest.fn(() => ({
+        upload: jest.fn(() => Promise.resolve({ data: null, error: null })),
+        createSignedUrl: jest.fn(() => Promise.resolve({ data: { signedUrl: '' }, error: null })),
+      })),
+    },
+  },
+}));
+
 // ---------- expo-status-bar ----------
 jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
 

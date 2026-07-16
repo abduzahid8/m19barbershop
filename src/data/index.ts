@@ -5,11 +5,16 @@ export interface Barber {
   rating: number;
   reviewCount: number;
   bio: string;
-  imageUrl?: string;
+  imageUrl?: string | number;
   portfolio: (string | number)[];
   reviews: string[];
   colorIndex: number;
   available: boolean;
+}
+
+export function barberImageSrc(imageUrl: string | number | undefined) {
+  if (imageUrl == null) return undefined;
+  return typeof imageUrl === 'number' ? imageUrl : { uri: imageUrl };
 }
 
 export interface Service {
@@ -19,6 +24,7 @@ export interface Service {
   duration: number;
   icon: string;
   description: string;
+  category?: string;
   types?: string[];
   image?: number;
 }
@@ -45,6 +51,9 @@ export interface ShopReview {
   rating: number;
   text: string;
   date: string;
+  source?: 'app' | 'yandex';
+  authorAvatarUrl?: string;
+  likesCount?: number;
 }
 
 export function getTimeSlots(): TimeSlot[] {
@@ -72,6 +81,8 @@ export const shopInfo = {
   instagramUrl: 'https://instagram.com/m19barbershop',
   telegramUrl: 'https://t.me/m19barbershop',
   email: 'info@m19barbershop.uz',
+  yandexOrgId: 'YOUR_YANDEX_ORG_ID',
+  yandexMapsUrl: 'https://yandex.com/maps/org/m19_barbershop/YOUR_YANDEX_ORG_ID/',
 };
 
 export function buildDate(daysFromToday: number): string {
@@ -86,31 +97,38 @@ export function timeAgo(dateString: string): string {
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays < 1) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-  return `${Math.floor(diffDays / 365)} years ago`;
+  if (diffDays < 1) return 'Сегодня';
+  if (diffDays === 1) return 'Вчера';
+  if (diffDays < 7) return `${diffDays} ${pluralDays(diffDays)} назад`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} ${pluralWeeks(Math.floor(diffDays / 7))} назад`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} ${pluralMonths(Math.floor(diffDays / 30))} назад`;
+  return `${Math.floor(diffDays / 365)} ${pluralYears(Math.floor(diffDays / 365))} назад`;
 }
+
+function pluralDays(n: number): string { return n === 1 ? 'день' : n >= 2 && n <= 4 ? 'дня' : 'дней'; }
+function pluralWeeks(n: number): string { return n === 1 ? 'неделю' : n >= 2 && n <= 4 ? 'недели' : 'недель'; }
+function pluralMonths(n: number): string { return n === 1 ? 'месяц' : n >= 2 && n <= 4 ? 'месяца' : 'месяцев'; }
+function pluralYears(n: number): string { return n === 1 ? 'год' : n >= 2 && n <= 4 ? 'года' : 'лет'; }
 
 export function formatDate(dateString: string): string {
   const d = new Date(dateString + 'T12:00:00');
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString('ru-RU', {
     weekday: 'short', month: 'short', day: 'numeric',
   });
 }
 
 export function formatDateLong(dateString: string): string {
   const d = new Date(dateString + 'T12:00:00');
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString('ru-RU', {
     weekday: 'long', month: 'long', day: 'numeric',
   });
 }
 
 export function formatPrice(price: number): string {
-  return price.toLocaleString('uz-UZ') + ' UZS';
+  return price.toLocaleString('ru-RU') + ' сум';
 }
+
+const RU_WEEKDAYS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
 export function getDayNames(): { day: string; date: string; dateNum: number; fullDate: string }[] {
   const days = [];
@@ -118,8 +136,8 @@ export function getDayNames(): { day: string; date: string; dateNum: number; ful
     const d = new Date();
     d.setDate(d.getDate() + i);
     days.push({
-      day: i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' }),
-      date: d.toLocaleDateString('en-US', { day: 'numeric' }),
+      day: i === 0 ? 'Сегодня' : RU_WEEKDAYS[d.getDay()],
+      date: d.toLocaleDateString('ru-RU', { day: 'numeric' }),
       dateNum: d.getDate(),
       fullDate: d.toISOString().split('T')[0],
     });

@@ -12,20 +12,32 @@ interface CategoryChipProps {
 export default function CategoryChip({ label, icon, active, onPress }: CategoryChipProps) {
   const glow = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(1)).current;
+  const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     Animated.spring(glow, { toValue: active ? 1 : 0, friction: 8, tension: 80, useNativeDriver: true }).start();
+    if (pulseLoopRef.current) {
+      pulseLoopRef.current.stop();
+      pulseLoopRef.current = null;
+    }
     if (active) {
-      Animated.loop(
+      pulseLoopRef.current = Animated.loop(
         Animated.sequence([
           Animated.timing(pulse, { toValue: 1.08, duration: 1200, useNativeDriver: true }),
           Animated.timing(pulse, { toValue: 1, duration: 1200, useNativeDriver: true }),
         ]),
         { iterations: -1 }
-      ).start();
+      );
+      pulseLoopRef.current.start();
     } else {
       pulse.setValue(1);
     }
+    return () => {
+      if (pulseLoopRef.current) {
+        pulseLoopRef.current.stop();
+        pulseLoopRef.current = null;
+      }
+    };
   }, [active]);
 
   return (

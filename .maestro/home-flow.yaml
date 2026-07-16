@@ -5,11 +5,11 @@ appId: uz.m19barbershop.app
     timeout: 5000
 - assertVisible: "M19"
 - assertVisible: "Barbershop"
-- assertVisible: "Book now"
+- assertVisible: "Записаться"
 - tapOn:
-    text: "Book now"
+    text: "Записаться"
 - waitForAnimationToEnd:
     timeout: 5000
-- assertVisible: "Menu"
-- assertVisible: "Haircut"
-- assertVisible: "Beard Trim"
+- assertVisible: "Меню"
+- assertVisible: "Стрижка"
+- assertVisible: "Коррекция бороды"

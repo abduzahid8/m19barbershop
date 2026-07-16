@@ -21,13 +21,13 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "scheme": "m19barbershop",
     "plugins": [
-      "expo-video",
       "expo-font",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
+          "backgroundColor": "#000000",
           "resizeMode": "contain"
         }
       ],
