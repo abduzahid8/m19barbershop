@@ -43,7 +43,7 @@ export default function ServiceCard({ service, selected, onPress, index = 0 }: S
   const entranceScale = entrance.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] });
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ width: '50%', padding: 5 }}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ width: '50%', padding: 4 }}>
       <Animated.View style={{
         opacity: entrance,
         transform: [
@@ -53,24 +53,18 @@ export default function ServiceCard({ service, selected, onPress, index = 0 }: S
           { scale: scaleSel },
         ],
       }}>
-        <View style={styles.card}>
+        <View style={[styles.card, selected && styles.cardSelected]}>
           {service.image ? (
             <Image source={service.image} style={styles.cardImage} resizeMode="cover" />
           ) : (
             <View style={[styles.cardImage, { backgroundColor: ringColor + '44' }]} />
           )}
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.cardOverlay} pointerEvents="none" />
-
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.75)']} style={styles.cardOverlay} pointerEvents="none" />
           <Text style={styles.name}>{service.name}</Text>
-
           {selected && (
             <Animated.View style={[styles.checkBadge, { opacity: checkReveal, transform: [{ scale: checkReveal }] }]}>
-              <Feather name="check" size={14} color={colors.onAccent} />
+              <Feather name="check" size={12} color={colors.onAccent} />
             </Animated.View>
-          )}
-
-          {selected && (
-            <View style={[styles.selectedBorder, { borderColor: ringColor }]} />
           )}
         </View>
       </Animated.View>
@@ -80,12 +74,16 @@ export default function ServiceCard({ service, selected, onPress, index = 0 }: S
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: borderRadius.lg,
-    minHeight: 180,
+    borderRadius: borderRadius.md,
+    minHeight: 130,
     justifyContent: 'flex-end',
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
+  },
+  cardSelected: {
+    borderWidth: 2,
+    borderColor: colors.accent,
   },
   cardImage: {
     ...StyleSheet.absoluteFillObject,
@@ -96,26 +94,19 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   name: {
-    fontSize: fontSize.md,
+    fontSize: fontSize.sm,
     fontFamily: fonts.body,
     fontWeight: '600',
     color: colors.white,
     textAlign: 'center',
-    padding: spacing.sm,
+    padding: spacing.xs + 2,
     zIndex: 2,
   },
   checkBadge: {
-    position: 'absolute', top: spacing.md, right: spacing.md,
-    width: 26, height: 26, borderRadius: 13,
+    position: 'absolute', top: spacing.sm, right: spacing.sm,
+    width: 22, height: 22, borderRadius: 11,
     backgroundColor: colors.accent,
     alignItems: 'center', justifyContent: 'center',
     zIndex: 5,
-  },
-  selectedBorder: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    borderRadius: borderRadius.lg,
-    borderWidth: 2,
-    zIndex: 4,
   },
 });

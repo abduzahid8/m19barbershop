@@ -7,8 +7,6 @@ import { colors, fonts, borderRadius } from '../theme';
 
 const iconMap: Record<string, keyof typeof Feather.glyphMap> = {
   Home: 'home',
-  Barbers: 'users',
-  Profile: 'user',
 };
 
 export default function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {

@@ -4,15 +4,12 @@ import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, fontSize, borderRadius, fonts } from '../theme';
-import Button from '../components/Button';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function SettingsScreen() {
-  const { signOut } = useAuth();
   const navigation = useNavigation<Nav>();
   const [notifications, setNotifications] = useState(true);
 
@@ -53,11 +50,6 @@ export default function SettingsScreen() {
             </View>
             <Text style={styles.rowValue}>Русский</Text>
           </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Аккаунт</Text>
-          <Button title="Выйти" variant="outline" fullWidth onPress={signOut} style={styles.logout} />
         </View>
 
         <Text style={styles.version}>M19 Barbershop v1.0.0</Text>
@@ -133,7 +125,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontFamily: fonts.body,
   },
-  logout: { marginTop: spacing.md },
   version: {
     fontSize: fontSize.xs,
     color: colors.textTertiary,

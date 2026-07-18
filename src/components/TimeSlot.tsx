@@ -1,5 +1,4 @@
 import { TouchableOpacity, Text, View, StyleSheet } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 import { colors, spacing, fontSize, borderRadius, fonts } from '../theme';
 
 interface TimeSlotProps {
@@ -16,21 +15,9 @@ export default function TimeSlot({ time, available, selected, onPress }: TimeSlo
       activeOpacity={0.7}
       style={[styles.block, selected && styles.blockSelected, !available && styles.blockTaken]}
     >
-      {selected && (
-        <View style={styles.selectedBar} />
-      )}
       <Text style={[styles.time, selected && styles.timeSelected]}>{time}</Text>
       <View style={styles.spacer} />
-      {selected ? (
-        <View style={styles.badge}>
-          <Feather name="check" size={11} color={colors.onAccent} />
-          <Text style={styles.badgeText}>Выбрано</Text>
-        </View>
-      ) : available ? (
-        <Text style={styles.free}>Свободно</Text>
-      ) : (
-        <Text style={styles.taken}>Занято</Text>
-      )}
+      <View style={[styles.dot, selected && styles.dotSelected, !available && !selected && styles.dotTaken]} />
     </TouchableOpacity>
   );
 }
@@ -39,52 +26,31 @@ const styles = StyleSheet.create({
   block: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md + 2,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.md,
-    gap: spacing.xs,
     marginBottom: spacing.xs,
-    position: 'relative',
-    overflow: 'hidden',
   },
   blockSelected: {
     backgroundColor: colors.accent,
   },
   blockTaken: {
-    opacity: 0.25,
-  },
-  selectedBar: {
-    position: 'absolute',
-    left: 0, top: 4, bottom: 4, width: 3,
-    backgroundColor: colors.onAccent,
-    borderRadius: 1.5,
+    opacity: 0.2,
   },
   time: {
     fontSize: fontSize.lg, fontFamily: fonts.body, fontWeight: '600',
     color: colors.text,
   },
-  ampm: {
-    fontSize: fontSize.xs, fontFamily: fonts.bodyLight,
-    color: colors.textTertiary,
-    marginTop: 2,
-  },
   timeSelected: { color: colors.onAccent },
   spacer: { flex: 1 },
-  badge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+  dot: {
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: colors.success,
+  },
+  dotSelected: {
     backgroundColor: colors.onAccent,
-    paddingHorizontal: spacing.sm + 2, paddingVertical: 3,
-    borderRadius: borderRadius.full,
   },
-  badgeText: {
-    fontSize: fontSize.xs, fontFamily: fonts.body, fontWeight: '600', color: colors.accent,
-  },
-  free: {
-    fontSize: fontSize.sm, fontFamily: fonts.bodyLight,
-    color: colors.success, fontWeight: '500',
-  },
-  taken: {
-    fontSize: fontSize.sm, fontFamily: fonts.bodyLight,
-    color: colors.textTertiary,
+  dotTaken: {
+    backgroundColor: colors.textTertiary,
   },
 });

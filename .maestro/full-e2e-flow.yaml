@@ -17,14 +17,14 @@ appId: uz.m19barbershop.app
 
 # ===== HOME SCREEN =====
 - assertVisible: "M19"
-- assertVisible: "Barbershop"
-- assertVisible: "Записаться"
+- assertVisible: "BARBERSHOP"
+- assertVisible: "Онлайн-запись"
 
 # ===== FULL BOOKING FLOW (4 steps) =====
 
 # Step 1: Select services
 - tapOn:
-    text: "Записаться"
+    text: "Онлайн-запись"
 - waitForAnimationToEnd:
     timeout: 3000
 - assertVisible: "Меню"

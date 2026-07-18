@@ -1,43 +1,15 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  ReactNode,
-} from 'react';
-import * as authService from '../services/auth';
+import { createContext, useContext, ReactNode } from 'react';
+import { defaultGuest, type AuthUser } from '../services/auth';
 
 interface AuthState {
-  user: authService.AuthUser | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  signOut: () => Promise<void>;
-  setUser: (user: authService.AuthUser | null) => void;
+  user: AuthUser;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<authService.AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    authService.getSession().then((result) => {
-      if (result.data) setUser(result.data);
-      setIsLoading(false);
-    });
-  }, []);
-
-  const signOut = useCallback(async () => {
-    await authService.clearSession();
-    setUser(null);
-  }, []);
-
   return (
-    <AuthContext.Provider
-      value={{ user, isLoading, isAuthenticated: user !== null, signOut, setUser }}
-    >
+    <AuthContext.Provider value={{ user: defaultGuest }}>
       {children}
     </AuthContext.Provider>
   );

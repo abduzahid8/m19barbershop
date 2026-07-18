@@ -2,8 +2,6 @@ import { render } from '@testing-library/react-native';
 import AppNavigator from '../navigation/AppNavigator';
 
 jest.mock('../screens/HomeScreen', () => () => null);
-jest.mock('../screens/BarbersScreen', () => () => null);
-jest.mock('../screens/ProfileScreen', () => () => null);
 
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');

@@ -17,7 +17,6 @@ interface PremiumCardProps {
 export default function PremiumCard({ service, selected, onPress }: PremiumCardProps) {
   const entrance = useRef(new Animated.Value(0)).current;
   const scaleSel = useRef(new Animated.Value(1)).current;
-  const checkReveal = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.spring(entrance, {
@@ -26,19 +25,16 @@ export default function PremiumCard({ service, selected, onPress }: PremiumCardP
   }, []);
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scaleSel, { toValue: selected ? 1.03 : 1, friction: 6, tension: 120, useNativeDriver: true }),
-      Animated.spring(checkReveal, { toValue: selected ? 1 : 0, friction: 5, tension: 100, useNativeDriver: true }),
-    ]).start();
+    Animated.spring(scaleSel, { toValue: selected ? 1.03 : 1, friction: 6, tension: 120, useNativeDriver: true }).start();
   }, [selected]);
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ paddingBottom: spacing.md }}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ paddingBottom: spacing.sm }}>
       <Animated.View style={{
         opacity: entrance,
         transform: [
-          { translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) },
-          { scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) },
+          { translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) },
+          { scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) },
           { scale: scaleSel },
         ],
       }}>
@@ -48,33 +44,16 @@ export default function PremiumCard({ service, selected, onPress }: PremiumCardP
           ) : (
             <LinearGradient colors={['#1a1a2e', '#16213e', '#0f3460']} style={styles.imageBg} />
           )}
-
-          <View style={styles.badgeRow}>
-            <View style={styles.badge}>
-              <Feather name="award" size={12} color="#D4AF37" />
-              <Text style={styles.badgeText}>ПРЕМИУМ</Text>
-            </View>
-
+          <View style={styles.badge}>
+            <Feather name="award" size={10} color="#D4AF37" />
+            <Text style={styles.badgeText}>VIP</Text>
           </View>
-
-          {!selected && (
-            <View style={styles.priceWrap}>
-              <Text style={styles.price}>{formatPrice(service.price)}</Text>
-            </View>
-          )}
-
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.overlay} pointerEvents="none" />
-
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.75)']} style={styles.overlay} pointerEvents="none" />
           <Text style={styles.name}>{service.name}</Text>
-
           {selected && (
-            <Animated.View style={[styles.checkBadge, { opacity: checkReveal, transform: [{ scale: checkReveal }] }]}>
-              <Feather name="check" size={14} color={colors.onAccent} />
-            </Animated.View>
-          )}
-
-          {selected && (
-            <View style={styles.selectedBorder} />
+            <View style={styles.checkBadge}>
+              <Feather name="check" size={12} color={colors.onAccent} />
+            </View>
           )}
         </View>
       </Animated.View>
@@ -85,8 +64,8 @@ export default function PremiumCard({ service, selected, onPress }: PremiumCardP
 const styles = StyleSheet.create({
   card: {
     width: CARD_W,
-    borderRadius: borderRadius.lg,
-    minHeight: 200,
+    borderRadius: borderRadius.md,
+    minHeight: 150,
     justifyContent: 'flex-end',
     position: 'relative',
     overflow: 'hidden',
@@ -103,25 +82,18 @@ const styles = StyleSheet.create({
     width: undefined,
     height: undefined,
   },
-  badgeRow: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    zIndex: 3,
-  },
   badge: {
+    position: 'absolute', top: spacing.sm, left: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: 'rgba(212,175,55,0.15)',
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: borderRadius.full,
     borderWidth: 1,
     borderColor: 'rgba(212,175,55,0.3)',
+    zIndex: 3,
   },
   badgeText: {
     fontSize: fontSize.xs - 1,
@@ -130,42 +102,23 @@ const styles = StyleSheet.create({
     color: '#D4AF37',
     letterSpacing: 1,
   },
-  priceWrap: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
-    zIndex: 3,
-  },
-  price: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.display,
-    color: '#D4AF37',
-  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
   },
   name: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontFamily: fonts.body,
     fontWeight: '600',
     color: colors.white,
     textAlign: 'center',
-    padding: spacing.md,
+    padding: spacing.sm + 2,
     zIndex: 2,
   },
   checkBadge: {
-    position: 'absolute', top: spacing.md, right: spacing.md,
-    width: 26, height: 26, borderRadius: 13,
+    position: 'absolute', top: spacing.sm, right: spacing.sm,
+    width: 22, height: 22, borderRadius: 11,
     backgroundColor: '#D4AF37',
     alignItems: 'center', justifyContent: 'center',
     zIndex: 5,
-  },
-  selectedBorder: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    borderRadius: borderRadius.lg,
-    borderWidth: 2,
-    borderColor: '#D4AF37',
-    zIndex: 4,
   },
 });

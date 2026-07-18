@@ -1,15 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import HomeScreen from '../screens/HomeScreen';
 
-jest.mock('expo-video', () => ({
-  VideoView: 'VideoView',
-  useVideoPlayer: jest.fn(() => ({
-    loop: true,
-    muted: true,
-    play: jest.fn(),
-  })),
-}));
-
 jest.mock('@expo/vector-icons/Feather', () => 'Feather');
 
 const mockNavigate = jest.fn();
@@ -23,28 +14,29 @@ describe('HomeScreen', () => {
     mockNavigate.mockClear();
   });
 
-  it('renders logo and subtitle', () => {
+  it('renders hero content', () => {
     render(<HomeScreen />);
-    expect(screen.getByText('M19')).toBeTruthy();
-    expect(screen.getByText('Barbershop')).toBeTruthy();
+    expect(screen.getAllByText('M19').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('BARBERSHOP').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/ЗАПИСАТЬСЯ/)).toBeTruthy();
   });
 
-  it('renders stats', () => {
+  it('renders online booking button', () => {
     render(<HomeScreen />);
-    expect(screen.getByText('Барберы')).toBeTruthy();
-    expect(screen.getByText('Услуги')).toBeTruthy();
-    expect(screen.getByText('Лет')).toBeTruthy();
+    expect(screen.getByText('Онлайн-запись')).toBeTruthy();
   });
 
-  it('renders book now button', () => {
+  it('navigates to Booking on online booking press', () => {
     render(<HomeScreen />);
-    expect(screen.getByText('Записаться')).toBeTruthy();
-  });
-
-  it('navigates to Booking on Book now press', () => {
-    render(<HomeScreen />);
-    const bookBtn = screen.getByText('Записаться');
+    const bookBtn = screen.getByText('Онлайн-запись');
     fireEvent.press(bookBtn);
     expect(mockNavigate).toHaveBeenCalledWith('Booking', { preselectedBarber: undefined });
+  });
+
+  it('renders sections', () => {
+    render(<HomeScreen />);
+    expect(screen.getByText('ОТЗЫВЫ КЛИЕНТОВ')).toBeTruthy();
+    expect(screen.getByText('НОВОСТИ')).toBeTruthy();
+    expect(screen.getByText('ЛОКАЦИЯ')).toBeTruthy();
   });
 });

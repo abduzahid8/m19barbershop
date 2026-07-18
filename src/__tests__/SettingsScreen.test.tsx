@@ -17,12 +17,6 @@ describe('SettingsScreen', () => {
     expect(screen.getByText('Русский')).toBeTruthy();
   });
 
-  it('renders account section with logout', () => {
-    render(<SettingsScreen />);
-    expect(screen.getByText('Аккаунт')).toBeTruthy();
-    expect(screen.getByText('Выйти')).toBeTruthy();
-  });
-
   it('renders version', () => {
     render(<SettingsScreen />);
     expect(screen.getByText('M19 Barbershop v1.0.0')).toBeTruthy();

@@ -26,7 +26,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 const { width: SCREEN_W } = Dimensions.get('window');
 const CONTENT_PAD = spacing.xxl;
 const CAROUSEL_W = SCREEN_W - CONTENT_PAD * 2;
-const CAROUSEL_H = 280;
+const CAROUSEL_H = 220;
 const PROGRESS_W = SCREEN_W - CONTENT_PAD * 2;
 const CATEGORIES = ['Все', 'Стрижки', 'Борода', 'Бритьё'];
 
@@ -40,144 +40,7 @@ function getServiceCategory(service: Service): string {
   return 'Стрижки';
 }
 
-function SparkleDust() {
-  const sp = useRef<{ x: Animated.Value; y: Animated.Value; o: Animated.Value; s: Animated.Value }[]>([]).current;
-  const sparkleRef = useRef<Animated.CompositeAnimation | null>(null);
-  if (sp.length === 0) {
-    for (let i = 0; i < 16; i++) {
-      sp.push({
-        x: new Animated.Value(0), y: new Animated.Value(0),
-        o: new Animated.Value(0), s: new Animated.Value(0),
-      });
-    }
-  }
-  useEffect(() => {
-    const anims = sp.map((p, i) => {
-      const a = (i / sp.length) * 360 + Math.random() * 30;
-      const d = 40 + Math.random() * 120;
-      return Animated.parallel([
-        Animated.spring(p.x, { toValue: Math.cos(a) * d, friction: 6, tension: 30, useNativeDriver: true }),
-        Animated.timing(p.y, { toValue: -Math.sin(a) * d - 40, duration: 1800, useNativeDriver: true }),
-        Animated.timing(p.o, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.timing(p.o, { toValue: 0, duration: 1000, delay: 600, useNativeDriver: true }),
-        Animated.spring(p.s, { toValue: 1, friction: 5, tension: 60, useNativeDriver: true }),
-      ]);
-    });
-    sparkleRef.current = Animated.stagger(30, anims);
-    sparkleRef.current.start();
-    return () => {
-      if (sparkleRef.current) {
-        sparkleRef.current.stop();
-      }
-    };
-  }, []);
 
-  return (
-    <View style={{ position: 'absolute', top: 80, left: SCREEN_W / 2, zIndex: 10 }} pointerEvents="none">
-      {sp.map((p, i) => (
-        <Animated.View key={i} style={{
-          position: 'absolute', width: 3, height: 3, borderRadius: 1.5,
-          backgroundColor: '#fff', opacity: p.o,
-          transform: [{ translateX: p.x }, { translateY: p.y }, { scale: p.s }],
-        }} />
-      ))}
-    </View>
-  );
-}
-
-function ExpandingRings() {
-  const rings = useRef(Array.from({ length: 3 }, () => ({
-    scale: new Animated.Value(0), opacity: new Animated.Value(0),
-  }))).current;
-  const ringAnims = useRef<Animated.CompositeAnimation[]>([]);
-
-  useEffect(() => {
-    ringAnims.current.forEach((a) => a.stop());
-    ringAnims.current = [];
-    rings.forEach((r, i) => {
-      const anim = Animated.sequence([
-        Animated.delay(i * 250),
-        Animated.parallel([
-          Animated.spring(r.scale, { toValue: 1, friction: 7, tension: 40, useNativeDriver: true }),
-          Animated.timing(r.opacity, { toValue: 0.5, duration: 200, useNativeDriver: true }),
-        ]),
-        Animated.timing(r.opacity, { toValue: 0, duration: 800, useNativeDriver: true }),
-      ]);
-      anim.start();
-      ringAnims.current.push(anim);
-    });
-    return () => {
-      ringAnims.current.forEach((a) => a.stop());
-      ringAnims.current = [];
-    };
-  }, []);
-
-  return (
-    <View style={{ position: 'absolute', top: 100, left: SCREEN_W / 2, zIndex: 5 }} pointerEvents="none">
-      {rings.map((r, i) => (
-        <Animated.View key={i} style={{
-          position: 'absolute',
-          width: 200, height: 200, marginLeft: -100, marginTop: -100,
-          borderRadius: 100, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)',
-          opacity: r.opacity,
-          transform: [{ scale: r.scale }],
-        }} />
-      ))}
-    </View>
-  );
-}
-
-function WaxStamp({ scale }: { scale: Animated.Value }) {
-  return (
-    <Animated.View style={[styles.waxOuter, { transform: [{ scale }] }]}>
-      <LinearGradient colors={['#E8A87C', '#D4A88B', '#C49070']} style={styles.waxBody}>
-        <View style={styles.waxRing}>
-          <Text style={styles.waxLetter}>M</Text>
-        </View>
-        <View style={styles.waxDrip} />
-        <View style={[styles.waxDrip, styles.waxDrip2]} />
-      </LinearGradient>
-    </Animated.View>
-  );
-}
-
-function SpotlightBeam({ active }: { active: boolean }) {
-  const beamY = useRef(new Animated.Value(-100)).current;
-  const beamLoopRef = useRef<Animated.CompositeAnimation | null>(null);
-
-  useEffect(() => {
-    if (beamLoopRef.current) {
-      beamLoopRef.current.stop();
-      beamLoopRef.current = null;
-    }
-    if (active) {
-      beamLoopRef.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(beamY, { toValue: CAROUSEL_H + 50, duration: 2500, useNativeDriver: true }),
-          Animated.timing(beamY, { toValue: -100, duration: 0, useNativeDriver: true }),
-        ]),
-        { iterations: -1 }
-      );
-      beamLoopRef.current.start();
-    } else {
-      beamY.setValue(-100);
-    }
-    return () => {
-      if (beamLoopRef.current) {
-        beamLoopRef.current.stop();
-        beamLoopRef.current = null;
-      }
-    };
-  }, [active]);
-
-  if (!active) return null;
-
-  return (
-    <Animated.View style={[styles.beam, { transform: [{ translateY: beamY }] }]} pointerEvents="none">
-      <LinearGradient colors={['transparent', 'rgba(255,255,255,0.04)', 'transparent']} style={{ flex: 1 }} />
-    </Animated.View>
-  );
-}
 
 function AvatarConstellation({ barbers: bbs, selected, onSelect }: {
   barbers: Barber[]; selected: Barber | null;
@@ -252,8 +115,7 @@ function BarberCardStack({ barbers: bbs, selected, onSelect }: {
           ) : (
             <View style={{ width: CAROUSEL_W, height: CAROUSEL_H, backgroundColor: colors.barberColors[item.colorIndex % colors.barberColors.length] }} />
           )}
-          <SpotlightBeam active={isSel} />
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={StyleSheet.absoluteFill} pointerEvents="none" />
           <View style={styles.cardOverlay}>
             <Text style={styles.cardName}>{item.name}</Text>
           </View>
@@ -295,50 +157,6 @@ function BarberCardStack({ barbers: bbs, selected, onSelect }: {
   );
 }
 
-function MeterOrb({ count, total }: { count: number; total: number }) {
-  const arc = useRef(new Animated.Value(0)).current;
-  const pulsing = useRef(new Animated.Value(1)).current;
-  const pulseRef = useRef<Animated.CompositeAnimation | null>(null);
-
-  useEffect(() => {
-    Animated.spring(arc, { toValue: count > 0 ? 1 : 0, friction: 7, tension: 60, useNativeDriver: true }).start();
-    if (pulseRef.current) {
-      pulseRef.current.stop();
-      pulseRef.current = null;
-    }
-    if (count > 0) {
-      pulseRef.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulsing, { toValue: 1.08, duration: 1800, useNativeDriver: true }),
-          Animated.timing(pulsing, { toValue: 1, duration: 1800, useNativeDriver: true }),
-        ]),
-        { iterations: -1 }
-      );
-      pulseRef.current.start();
-    } else {
-      pulsing.setValue(1);
-    }
-    return () => {
-      if (pulseRef.current) {
-        pulseRef.current.stop();
-        pulseRef.current = null;
-      }
-    };
-  }, [count]);
-
-  return (
-    <Animated.View style={[styles.orbBody, { transform: [{ scale: pulsing }] }]}>
-      <View style={styles.orbRing}>
-        <Animated.View style={[styles.orbFill, { opacity: arc }]} />
-        <View style={styles.orbCenter}>
-          <Text style={styles.orbCount}>{count}</Text>
-          <Text style={styles.orbLabel}>выбрано</Text>
-        </View>
-      </View>
-    </Animated.View>
-  );
-}
-
 export default function BookingScreen() {
   const route = useRoute<Route>();
   const navigation = useNavigation<Nav>();
@@ -348,7 +166,6 @@ export default function BookingScreen() {
   const { data: barbers } = useBarbers();
   const insets = useSafeAreaInsets();
   const [activeCat, setActiveCat] = useState('Все');
-  const [showSparkle, setShowSparkle] = useState(false);
   const [summaryImgFailed, setSummaryImgFailed] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -372,7 +189,6 @@ export default function BookingScreen() {
     Animated.timing(stepBg, { toValue: state.currentStep, duration: 600, useNativeDriver: true }).start();
 
     if (state.currentStep === 4) {
-      setShowSparkle(true);
       Animated.spring(sealScale, { toValue: 1, friction: 5, tension: 35, useNativeDriver: true }).start();
     }
     if (state.currentStep > 1) scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -382,7 +198,6 @@ export default function BookingScreen() {
   const totalDuration = useMemo(() => state.selectedServices.reduce((sum, s) => sum + s.duration, 0), [state.selectedServices]);
 
   const [displaySlots, setDisplaySlots] = useState<{ time: string; available: boolean }[]>([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
 
   const barberForSlots = useMemo(() => {
     if (state.selectedBarber) return state.selectedBarber;
@@ -392,7 +207,6 @@ export default function BookingScreen() {
 
   useEffect(() => {
     if (!barberForSlots || !state.selectedDate) return;
-    setSlotsLoading(true);
     api.getTimeSlotsForBarber(barberForSlots.id, state.selectedDate).then((result) => {
       if (result.data) {
         const now = new Date();
@@ -407,7 +221,7 @@ export default function BookingScreen() {
           })
         );
       }
-    }).finally(() => setSlotsLoading(false));
+    });
   }, [barberForSlots?.id, state.selectedDate, today]);
   const filtered = useMemo(() =>
     activeCat === 'Все' ? services : services.filter((s) => getServiceCategory(s) === activeCat),
@@ -482,15 +296,10 @@ export default function BookingScreen() {
               <Feather name={state.currentStep > 1 ? 'arrow-left' : 'x'} size={20} color={colors.text} />
             </TouchableOpacity>
           )}
-          <Text style={styles.headerTitle}>
-            {state.currentStep === 1 ? 'Меню' : state.currentStep === 2 ? 'Мастер' : state.currentStep === 3 ? 'Время' : 'Печать'}
-          </Text>
-        </View>
-        {state.currentStep < 4 && (
-          <View style={styles.stepBadge}>
-            <Text style={styles.stepBadgeText}>Шаг {state.currentStep}/3</Text>
+            <Text style={styles.headerTitle}>
+              {state.currentStep === 1 ? 'Услуги' : state.currentStep === 2 ? 'Мастер' : state.currentStep === 3 ? 'Время' : 'Готово'}
+            </Text>
           </View>
-        )}
       </View>
 
       <View style={styles.progressTrack}>
@@ -501,8 +310,7 @@ export default function BookingScreen() {
         <Animated.View style={slideStyle}>
           {state.currentStep === 1 && (
             <View>
-              <Text style={styles.stepTitle}>Что вас интересует?</Text>
-              <Text style={styles.stepSub}>Выберите одну или несколько услуг</Text>
+              <Text style={styles.stepTitle}>Услуги</Text>
 
               <PremiumCard
                 service={premiumService}
@@ -510,11 +318,7 @@ export default function BookingScreen() {
                 onPress={() => selectService(premiumService)}
               />
 
-              <View style={styles.otherDivider}>
-                <View style={styles.otherLine} />
-                <Text style={styles.otherLabel}>ДРУГИЕ УСЛУГИ</Text>
-                <View style={styles.otherLine} />
-              </View>
+              <View style={styles.divider} />
 
               <View style={styles.categoryRail}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
@@ -533,23 +337,19 @@ export default function BookingScreen() {
               {state.selectedServices.length > 0 && (
                 <Animated.View style={[styles.tokenStrip, cardShadow]}>
                   <View style={styles.tokenLeft}>
-                    <MeterOrb count={state.selectedServices.length} total={totalPrice} />
-                    <View style={styles.tokenList}>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
-                        {state.selectedServices.map((s) => (
-                          <TouchableOpacity key={s.id} onPress={() => selectService(s)} style={styles.token} activeOpacity={0.8}>
-                            <Feather name={s.icon as any} size={11} color={colors.cardText} />
-                            <Text style={styles.tokenName}>{s.name}</Text>
-                            <Feather name="x" size={11} color={colors.cardTextTertiary} />
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
+                    <View style={styles.tokenCount}>
+                      <Text style={styles.tokenCountText}>{state.selectedServices.length}</Text>
                     </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.xs }}>
+                      {state.selectedServices.map((s) => (
+                        <TouchableOpacity key={s.id} onPress={() => selectService(s)} style={styles.token} activeOpacity={0.8}>
+                          <Text style={styles.tokenName}>{s.name}</Text>
+                          <Feather name="x" size={10} color={colors.cardTextTertiary} />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                   </View>
-                  <View style={styles.tokenTotal}>
-                    <Text style={styles.tokenPrice}>{formatPrice(totalPrice)}</Text>
-                    <Text style={styles.tokenDur}>{totalDuration} мин всего</Text>
-                  </View>
+                  <Text style={styles.tokenPrice}>{formatPrice(totalPrice)}</Text>
                 </Animated.View>
               )}
             </View>
@@ -557,10 +357,7 @@ export default function BookingScreen() {
 
           {state.currentStep === 2 && (
             <View>
-              <Text style={styles.stepTitle}>Выберите мастера</Text>
-              <Text style={styles.stepSub}>
-                {route.params?.preselectedBarber ? `Предвыбран: ${route.params.preselectedBarber.name}` : 'Листайте карусель и нажмите для выбора'}
-              </Text>
+              <Text style={styles.stepTitle}>Мастер</Text>
 
               <View style={{ marginHorizontal: -CONTENT_PAD, marginBottom: spacing.xl }}>
                 <BarberCardStack barbers={barbers} selected={state.selectedBarber} onSelect={selectBarber} />
@@ -572,27 +369,17 @@ export default function BookingScreen() {
                 onSelect={selectBarber}
               />
 
-              <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-                <TouchableOpacity onPress={state.selectedBarber ? () => selectBarber(null) : selectAnyBarber} style={[styles.portalBtn, state.anyBarber && styles.portalBtnActive]} activeOpacity={0.7}>
-                  {state.selectedBarber ? (
-                    <Feather name="user-x" size={14} color={colors.textSecondary} />
-                  ) : (
-                    <View style={styles.portalRing}>
-                      <View style={styles.portalDot} />
-                    </View>
-                  )}
-                  <Text style={[styles.portalText, state.anyBarber && styles.portalTextActive]}>
-                    {state.selectedBarber ? 'Отменить' : 'Любой свободный мастер'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity onPress={state.selectedBarber ? () => selectBarber(null) : selectAnyBarber} style={[styles.anyBtn, state.anyBarber && styles.anyBtnActive]} activeOpacity={0.7}>
+                <Text style={[styles.anyBtnText, state.anyBarber && styles.anyBtnTextActive]}>
+                  {state.selectedBarber ? 'Отменить выбор' : 'Любой мастер'}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
           {state.currentStep === 3 && (
             <View>
-              <Text style={styles.stepTitle}>Выберите время</Text>
-              <Text style={styles.stepSub}>Выберите дату и свободный слот</Text>
+              <Text style={styles.stepTitle}>Дата и время</Text>
 
               {state.selectedBarber && (
                 <View style={styles.barberSummary}>
@@ -601,10 +388,7 @@ export default function BookingScreen() {
                   ) : (
                     <View style={[styles.barberSummaryImg, { backgroundColor: colors.barberColors[state.selectedBarber.colorIndex % colors.barberColors.length] }]} />
                   )}
-                  <View style={styles.barberSummaryInfo}>
-                    <Text style={styles.barberSummaryLabel}>Мастер</Text>
-                    <Text style={styles.barberSummaryName}>{state.selectedBarber.name}</Text>
-                  </View>
+                  <Text style={styles.barberSummaryName}>{state.selectedBarber.name}</Text>
                 </View>
               )}
 
@@ -626,61 +410,39 @@ export default function BookingScreen() {
 
           {state.currentStep === 4 && (
             <View style={styles.sealWrap}>
-              {showSparkle && <SparkleDust />}
-              {showSparkle && <ExpandingRings />}
-
-              <WaxStamp scale={sealScale} />
-
-              <Animated.View style={{ opacity: sealScale, transform: [{ translateY: sealScale.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }], alignItems: 'center' }}>
+              <Animated.View style={{ opacity: sealScale, alignItems: 'center', marginBottom: spacing.xxl }}>
+                <View style={styles.sealIcon}>
+                  <Feather name="check" size={28} color={colors.onAccent} />
+                </View>
                 <Text style={styles.sealTitle}>Запись подтверждена</Text>
                 <Text style={styles.sealSub}>{state.selectedDate ? formatDate(state.selectedDate) : ''} в {state.selectedTime}</Text>
               </Animated.View>
 
               <Animated.View style={[styles.sealCard, cardShadow, { opacity: sealScale.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0.3, 1] }) }]}>
-                <View style={styles.sealCardGlow} />
-                <View style={styles.sealCardEdge}>
-                  <View style={styles.sealPerf} />
-                  <View style={styles.sealPerf} />
-                  <View style={styles.sealPerf} />
-                  <View style={styles.sealPerf} />
-                  <View style={styles.sealPerf} />
-                </View>
                 <Text style={styles.sealBookingId}>{bookingId}</Text>
-                <Animated.View style={{ opacity: sealScale, transform: [{ translateY: sealScale.interpolate({ inputRange: [0, 0.5, 1], outputRange: [20, 10, 0] }) }] }}>
+                <View style={{ gap: spacing.sm }}>
                   {state.selectedBarber && (
                     <View style={styles.sealRow}>
-                      <Feather name="user" size={14} color={colors.cardTextSecondary} />
                       <Text style={styles.sealLabel}>Мастер</Text>
                       <Text style={styles.sealValue}>{state.selectedBarber.name}</Text>
                     </View>
                   )}
                   <View style={styles.sealRow}>
-                    <Feather name="scissors" size={14} color={colors.cardTextSecondary} />
-                    <Text style={styles.sealLabel}>Услуга</Text>
+                    <Text style={styles.sealLabel}>Услуги</Text>
                     <Text style={styles.sealValue}>{state.selectedServices.map((s) => s.name).join(', ')}</Text>
                   </View>
                   <View style={styles.sealRow}>
-                    <Feather name="calendar" size={14} color={colors.cardTextSecondary} />
                     <Text style={styles.sealLabel}>Дата</Text>
                     <Text style={styles.sealValue}>{state.selectedDate ? formatDate(state.selectedDate) : ''}</Text>
                   </View>
-                  <View style={styles.sealRow}>
-                    <Feather name="clock" size={14} color={colors.cardTextSecondary} />
-                    <Text style={styles.sealLabel}>Время</Text>
-                    <Text style={styles.sealValue}>{state.selectedTime}</Text>
-                  </View>
-                  <View style={[styles.sealRow, styles.sealRowTotal]}>
-                    <Feather name="credit-card" size={14} color={colors.cardTextSecondary} />
-                    <Text style={styles.sealLabel}>Итого</Text>
+                  <View style={[styles.sealRow, { borderBottomWidth: 0 }]}>
+                    <Text style={styles.sealLabel}>Cумма</Text>
                     <Text style={styles.sealValueTotal}>{formatPrice(totalPrice)}</Text>
                   </View>
-                </Animated.View>
+                </View>
               </Animated.View>
 
-              <Animated.View style={{ opacity: sealScale, width: '100%', gap: spacing.sm }}>
-                <Button title="Добавить в календарь" variant="outline" fullWidth onPress={() => {}} />
-                <Button title="На главную" fullWidth onPress={handleBackToHome} />
-              </Animated.View>
+              <Button title="На главную" fullWidth onPress={handleBackToHome} />
             </View>
           )}
         </Animated.View>
@@ -691,7 +453,7 @@ export default function BookingScreen() {
           <View style={styles.footerLeft}>
             {state.selectedServices.length > 0 && (
               <View style={styles.footerSummary}>
-                <Text style={styles.footerCount}>{state.selectedServices.length} {state.selectedServices.length === 1 ? 'услуга' : 'услуг'}</Text>
+                <Text style={styles.footerCount}>x{state.selectedServices.length}</Text>
                 <Text style={styles.footerTotal}>{formatPrice(totalPrice)}</Text>
               </View>
             )}
@@ -722,110 +484,88 @@ const styles = StyleSheet.create({
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   closeBtn: { padding: spacing.sm, marginLeft: -spacing.sm },
   headerTitle: { fontSize: fontSize.xl, fontFamily: fonts.display, color: colors.text, letterSpacing: 0.5 },
-  stepBadge: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    paddingHorizontal: spacing.sm + 4, paddingVertical: 3,
-    borderRadius: borderRadius.full,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-  },
-  stepBadgeText: { fontSize: fontSize.xs, fontFamily: fonts.body, fontWeight: '600', color: colors.textSecondary, letterSpacing: 0.5 },
+
   progressTrack: { height: 2, backgroundColor: colors.border, marginHorizontal: CONTENT_PAD, marginBottom: spacing.lg, borderRadius: 1, overflow: 'hidden' },
   progressFill: { height: 2, backgroundColor: colors.accent, borderRadius: 1 },
   scroll: { flex: 1 },
   content: { paddingHorizontal: CONTENT_PAD, paddingBottom: spacing.xxxl },
-  stepTitle: { fontSize: fontSize.xxl, fontFamily: fonts.display, color: colors.text, marginBottom: spacing.xs },
-  stepSub: { fontSize: fontSize.sm, fontFamily: fonts.bodyLight, color: colors.textSecondary, marginBottom: spacing.xl, lineHeight: 18 },
-  categoryRail: { marginBottom: spacing.lg, marginLeft: -CONTENT_PAD, marginRight: -CONTENT_PAD, paddingHorizontal: CONTENT_PAD },
-  otherDivider: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md, marginBottom: spacing.lg },
-  otherLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  otherLabel: { fontSize: fontSize.xs, fontFamily: fonts.body, fontWeight: '600', color: colors.textTertiary, letterSpacing: 1.5 },
+  stepTitle: { fontSize: fontSize.xl, fontFamily: fonts.display, color: colors.text, marginBottom: spacing.xl },
+  categoryRail: { marginBottom: spacing.md, marginLeft: -CONTENT_PAD, marginRight: -CONTENT_PAD, paddingHorizontal: CONTENT_PAD },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
   serviceGrid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -spacing.xs / 2 },
 
   tokenStrip: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.card, borderRadius: borderRadius.lg,
-    padding: spacing.md, marginTop: spacing.lg,
+    backgroundColor: colors.card, borderRadius: borderRadius.md,
+    padding: spacing.sm + 2, marginTop: spacing.lg,
   },
-  tokenLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
-  tokenList: { flex: 1, overflow: 'hidden' },
+  tokenLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 },
+  tokenCount: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: colors.cardText, alignItems: 'center', justifyContent: 'center',
+  },
+  tokenCountText: { fontSize: fontSize.xs, fontFamily: fonts.body, fontWeight: '700', color: colors.card },
   token: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.surfaceAlt, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs + 1,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: colors.surfaceAlt, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
   },
   tokenName: { fontSize: fontSize.xs, fontFamily: fonts.body, color: colors.cardText, fontWeight: '500' },
-  tokenTotal: { alignItems: 'flex-end' },
-  tokenPrice: { fontSize: fontSize.lg, fontFamily: fonts.display, color: colors.cardText, lineHeight: 22 },
-  tokenDur: { fontSize: fontSize.xs, fontFamily: fonts.bodyLight, color: colors.cardTextTertiary },
+  tokenPrice: { fontSize: fontSize.md, fontFamily: fonts.display, color: colors.cardText },
 
-  orbBody: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
-  orbRing: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  orbFill: { position: 'absolute', top: -2, left: -2, right: -2, bottom: -2, borderRadius: 23, borderWidth: 2, borderColor: colors.cardText, borderTopColor: 'transparent', borderLeftColor: 'transparent' },
-  orbCenter: { alignItems: 'center' },
-  orbCount: { fontSize: fontSize.lg, fontFamily: fonts.body, fontWeight: '700', color: colors.cardText, lineHeight: 20 },
-  orbLabel: { fontSize: fontSize.xs - 2, fontFamily: fonts.bodyLight, color: colors.cardTextTertiary, lineHeight: 10, marginTop: -1 },
-
-  cardOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing.lg },
-  cardName: { fontSize: fontSize.xxl, fontFamily: fonts.display, color: colors.white, marginBottom: 1 },
-  cardSelTag: { position: 'absolute', top: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accent, paddingHorizontal: spacing.sm + 2, paddingVertical: 3, borderRadius: borderRadius.full, zIndex: 5 },
+  cardOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing.md },
+  cardName: { fontSize: fontSize.xl, fontFamily: fonts.display, color: colors.white },
+  cardSelTag: { position: 'absolute', top: spacing.sm, right: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accent, paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full, zIndex: 5 },
   cardSelText: { fontSize: fontSize.xs, color: colors.onAccent, fontFamily: fonts.body, fontWeight: '600' },
   stackSelected: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)' },
   cardAura: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: borderRadius.lg + 3, borderWidth: 1, opacity: 0.3 },
 
-  beam: { position: 'absolute', top: 0, left: 0, right: 0, height: 40, zIndex: 2 },
-
   constellation: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.lg },
   constDot: { alignItems: 'center', marginBottom: spacing.lg },
-  constAvatar: { width: 94, height: 94, borderRadius: 47, borderWidth: 2, borderColor: 'transparent', overflow: 'hidden' },
+  constAvatar: { width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: 'transparent', overflow: 'hidden' },
   constAvatarActive: { borderColor: colors.accent },
-  constImg: { width: 94, height: 94, borderRadius: 47 },
-  constGlow: { position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderRadius: 51, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' },
-  constName: { fontSize: fontSize.xs - 2, fontFamily: fonts.bodyLight, color: colors.textTertiary, marginTop: 4, textAlign: 'center' },
+  constImg: { width: 72, height: 72, borderRadius: 36 },
+  constGlow: { position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderRadius: 40, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' },
+  constName: { fontSize: fontSize.xs - 2, fontFamily: fonts.bodyLight, color: colors.textTertiary, marginTop: 3, textAlign: 'center' },
 
-  portalBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-    paddingVertical: spacing.md, borderRadius: borderRadius.full,
+  anyBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    paddingVertical: spacing.sm + 2, borderRadius: borderRadius.full,
     borderWidth: 1, borderColor: colors.border, backgroundColor: 'transparent',
   },
-  portalBtnActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  portalRing: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: colors.textSecondary, alignItems: 'center', justifyContent: 'center' },
-  portalDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textSecondary },
-  portalText: { fontSize: fontSize.sm, fontFamily: fonts.bodyLight, color: colors.textSecondary },
-  portalTextActive: { color: colors.onAccent, fontWeight: '600' },
+  anyBtnActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  anyBtnText: { fontSize: fontSize.sm, fontFamily: fonts.bodyLight, color: colors.textSecondary },
+  anyBtnTextActive: { color: colors.onAccent, fontWeight: '600' },
 
   barberSummary: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.card, borderRadius: borderRadius.lg,
-    padding: spacing.md, marginBottom: spacing.lg,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.card, borderRadius: borderRadius.md,
+    padding: spacing.sm + 2, marginBottom: spacing.lg,
   },
-  barberSummaryImg: { width: 40, height: 40, borderRadius: 20 },
-  barberSummaryInfo: { flex: 1 },
-  barberSummaryLabel: { fontSize: fontSize.xs, fontFamily: fonts.bodyLight, color: colors.textTertiary },
-  barberSummaryName: { fontSize: fontSize.md, fontFamily: fonts.body, fontWeight: '600', color: colors.text },
+  barberSummaryImg: { width: 28, height: 28, borderRadius: 14 },
+  barberSummaryName: { fontSize: fontSize.sm, fontFamily: fonts.body, fontWeight: '600', color: colors.text },
   slotList: { marginTop: spacing.sm },
 
   sealWrap: { alignItems: 'center', paddingTop: spacing.xxl },
-  waxOuter: { marginBottom: spacing.xl, zIndex: 5 },
-  waxBody: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  waxRing: { width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
-  waxLetter: { fontSize: fontSize.xxl, fontFamily: fonts.display, color: colors.white, opacity: 0.9 },
-  waxDrip: { position: 'absolute', bottom: -6, left: 20, width: 6, height: 10, backgroundColor: '#D4A88B', borderRadius: 3, transform: [{ rotate: '10deg' }] },
-  waxDrip2: { left: 44, bottom: -4, width: 5, height: 8, transform: [{ rotate: '-8deg' }] },
-  sealTitle: { fontSize: fontSize.xxl, fontFamily: fonts.display, color: colors.text, marginBottom: spacing.xs },
+  sealIcon: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  sealTitle: { fontSize: fontSize.xl, fontFamily: fonts.display, color: colors.text, marginBottom: spacing.xs },
   sealSub: { fontSize: fontSize.md, fontFamily: fonts.bodyLight, color: colors.textSecondary, marginBottom: spacing.xxl },
   sealCard: {
-    width: '100%', backgroundColor: colors.card, borderRadius: borderRadius.lg, padding: spacing.xl,
-    marginBottom: spacing.xxl, position: 'relative', overflow: 'hidden',
+    width: '100%', backgroundColor: colors.card, borderRadius: borderRadius.md, padding: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  sealCardGlow: { position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.03)' },
-  sealCardEdge: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: spacing.md },
-  sealPerf: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.background, marginTop: -3 },
-  sealBookingId: { fontSize: fontSize.xs, fontFamily: fonts.body, fontWeight: '600', color: colors.cardTextTertiary, marginBottom: spacing.md, letterSpacing: 2 },
-  sealRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm + 2, gap: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
-  sealRowTotal: { borderBottomWidth: 0, paddingTop: spacing.md },
-  sealLabel: { fontSize: fontSize.md, color: colors.cardTextSecondary, fontFamily: fonts.bodyLight, width: 64 },
-  sealValue: { fontSize: fontSize.md, fontWeight: '600', fontFamily: fonts.body, color: colors.cardText, flex: 1, textAlign: 'right' },
-  sealValueTotal: { fontSize: fontSize.lg, fontFamily: fonts.display, color: colors.cardText, flex: 1, textAlign: 'right' },
+  sealBookingId: { fontSize: fontSize.xs, fontFamily: fonts.body, fontWeight: '600', color: colors.cardTextTertiary, marginBottom: spacing.sm + 2, letterSpacing: 2 },
+  sealRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+  },
+  sealLabel: { fontSize: fontSize.sm, color: colors.cardTextSecondary, fontFamily: fonts.bodyLight },
+  sealValue: { fontSize: fontSize.sm, fontWeight: '600', fontFamily: fonts.body, color: colors.cardText, flex: 1, textAlign: 'right' },
+  sealValueTotal: { fontSize: fontSize.md, fontFamily: fonts.display, color: colors.cardText },
   footer: {
     paddingHorizontal: CONTENT_PAD, paddingVertical: spacing.md, paddingBottom: spacing.lg + 4,
     borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background,
