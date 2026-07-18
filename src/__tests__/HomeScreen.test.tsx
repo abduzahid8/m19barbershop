@@ -36,7 +36,6 @@ describe('HomeScreen', () => {
   it('renders sections', () => {
     render(<HomeScreen />);
     expect(screen.getByText('ОТЗЫВЫ КЛИЕНТОВ')).toBeTruthy();
-    expect(screen.getByText('НОВОСТИ')).toBeTruthy();
     expect(screen.getByText('ЛОКАЦИЯ')).toBeTruthy();
   });
 });

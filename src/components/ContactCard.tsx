@@ -19,8 +19,8 @@ export default function ContactCard({ icon, label, value, accent = '#9FE870', on
         <Feather name={icon} size={20} color={accent} />
       </View>
       <View style={styles.text}>
-        <Text style={styles.label}>{label}</Text>
-        <Text style={styles.value}>{value}</Text>
+        <Text allowFontScaling={false} numberOfLines={1} style={styles.label}>{label}</Text>
+        <Text allowFontScaling={false} numberOfLines={1} adjustsFontSizeToFit style={styles.value}>{value}</Text>
       </View>
     </TouchableOpacity>
   );

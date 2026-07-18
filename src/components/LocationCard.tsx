@@ -34,16 +34,16 @@ export default function LocationCard({ address, onPress }: LocationCardProps) {
 function MapPattern() {
   return (
     <View style={styles.mapPattern}>
-      {Array.from({ length: 18 }).map((_, i) => (
-        <View key={`h-${i}`} style={[styles.gridLineH, { top: 14 + i * 22 }]} />
+      {Array.from({ length: 12 }).map((_, i) => (
+        <View key={`h-${i}`} style={[styles.gridLineH, { top: 10 + i * 18 }]} />
       ))}
       {Array.from({ length: 14 }).map((_, i) => (
         <View key={`v-${i}`} style={[styles.gridLineV, { left: 12 + i * 30 }]} />
       ))}
-      <View style={[styles.road, { top: 80, left: -20, right: -20, height: 18 }]} />
-      <View style={[styles.road, { top: 240, left: -20, right: -20, height: 14 }]} />
-      <View style={[styles.roadV, { left: 100, top: -10, bottom: -10, width: 14 }]} />
-      <View style={[styles.roadV, { left: 280, top: -10, bottom: -10, width: 12 }]} />
+      <View style={[styles.road, { top: 50, left: -20, right: -20, height: 14 }]} />
+      <View style={[styles.road, { top: 150, left: -20, right: -20, height: 12 }]} />
+      <View style={[styles.roadV, { left: 100, top: -10, bottom: -10, width: 12 }]} />
+      <View style={[styles.roadV, { left: 280, top: -10, bottom: -10, width: 10 }]} />
     </View>
   );
 }
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   mapWrap: {
-    height: 200,
+    height: 130,
     backgroundColor: '#0B0A09',
     overflow: 'hidden',
     position: 'relative',
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{ translateX: -22 }, { translateY: -34 }],
+    transform: [{ translateX: -18 }, { translateY: -28 }],
     alignItems: 'center',
   },
   pinShadow: {
@@ -82,9 +82,9 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   pin: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#9FE870',
     alignItems: 'center',
     justifyContent: 'center',
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   pinText: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.display,
     color: '#0F1410',
     letterSpacing: 0.5,
@@ -108,29 +108,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: spacing.md,
+    padding: spacing.sm + 2,
     gap: spacing.sm,
   },
   address: {
     flex: 1,
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     color: colors.white,
     fontFamily: fonts.bodyLight,
-    lineHeight: 18,
+    lineHeight: 15,
   },
   cta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs + 2,
     borderRadius: borderRadius.full,
     borderWidth: 1,
     borderColor: 'rgba(159,232,112,0.35)',
     backgroundColor: 'rgba(159,232,112,0.06)',
   },
   ctaText: {
-    fontSize: fontSize.sm,
+    fontSize: 11,
     color: '#9FE870',
     fontFamily: fonts.body,
     fontWeight: '500',
