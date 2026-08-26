@@ -5,9 +5,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { AuthProvider } from './src/contexts/AuthContext';
-import { AppProvider } from './src/state/AppContext';
-import { BookingProvider } from './src/state/BookingContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
 SplashScreen.preventAutoHideAsync();
@@ -30,18 +27,12 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-      <AppProvider>
-        <BookingProvider>
-          <NavigationContainer>
-            <View style={styles.root} onLayout={onLayoutRootView}>
-              <StatusBar style="light" />
-              <AppNavigator />
-            </View>
-          </NavigationContainer>
-        </BookingProvider>
-      </AppProvider>
-      </AuthProvider>
+      <NavigationContainer>
+        <View style={styles.root} onLayout={onLayoutRootView}>
+          <StatusBar style="light" />
+          <AppNavigator />
+        </View>
+      </NavigationContainer>
     </SafeAreaProvider>
   );
 }

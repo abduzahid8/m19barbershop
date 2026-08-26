@@ -166,7 +166,7 @@ export default function HomeScreen() {
           <Text style={styles.heroSub}>Премиальный барбершоп в центре Ташкента</Text>
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => navigation.navigate('Booking', { preselectedBarber: undefined })}
+            onPress={() => navigation.navigate('Booking')}
             style={styles.ctaBtn}
           >
             <Feather name="calendar" size={rs(17)} color="#0F1410" />

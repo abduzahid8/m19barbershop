@@ -30,7 +30,7 @@ describe('HomeScreen', () => {
     render(<HomeScreen />);
     const bookBtn = screen.getByText('Онлайн-запись');
     fireEvent.press(bookBtn);
-    expect(mockNavigate).toHaveBeenCalledWith('Booking', { preselectedBarber: undefined });
+    expect(mockNavigate).toHaveBeenCalledWith('Booking');
   });
 
   it('renders sections', () => {

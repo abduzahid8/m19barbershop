@@ -1,6 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Barber } from '../data';
 
 import TabBar from '../components/TabBar';
 import HomeScreen from '../screens/HomeScreen';
@@ -9,7 +8,7 @@ import AltegioBookingScreen from '../screens/AltegioBookingScreen';
 
 export type RootStackParamList = {
   MainTabs: undefined;
-  Booking: { preselectedBarber?: Barber } | undefined;
+  Booking: undefined;
 };
 
 export type TabParamList = {
