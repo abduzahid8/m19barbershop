@@ -1,0 +1,147 @@
+export interface Barber {
+  id: string;
+  name: string;
+  specialty: string;
+  rating: number;
+  reviewCount: number;
+  bio: string;
+  imageUrl?: string | number;
+  portfolio: (string | number)[];
+  reviews: string[];
+  colorIndex: number;
+  available: boolean;
+}
+
+export function barberImageSrc(imageUrl: string | number | undefined) {
+  if (imageUrl == null) return undefined;
+  return typeof imageUrl === 'number' ? imageUrl : { uri: imageUrl };
+}
+
+export interface Service {
+  id: string;
+  name: string;
+  price: number;
+  duration: number;
+  icon: string;
+  description: string;
+  category?: string;
+  types?: string[];
+  image?: number;
+}
+
+export interface TimeSlot {
+  time: string;
+  available: boolean;
+  period: 'morning' | 'afternoon' | 'evening';
+}
+
+export interface Appointment {
+  id: string;
+  barberId: string;
+  barberName: string;
+  serviceNames: string[];
+  date: string;
+  time: string;
+  status: 'upcoming' | 'completed' | 'cancelled';
+}
+
+export interface ShopReview {
+  id: string;
+  author: string;
+  rating: number;
+  text: string;
+  date: string;
+  source?: 'app' | 'yandex';
+  authorAvatarUrl?: string;
+  likesCount?: number;
+}
+
+export function getTimeSlots(): TimeSlot[] {
+  return [
+    { time: '09:00', available: true, period: 'morning' },
+    { time: '10:00', available: true, period: 'morning' },
+    { time: '11:00', available: true, period: 'morning' },
+    { time: '12:00', available: false, period: 'afternoon' },
+    { time: '13:00', available: true, period: 'afternoon' },
+    { time: '14:00', available: true, period: 'afternoon' },
+    { time: '15:00', available: true, period: 'afternoon' },
+    { time: '16:00', available: false, period: 'afternoon' },
+    { time: '17:00', available: true, period: 'evening' },
+    { time: '18:00', available: true, period: 'evening' },
+    { time: '19:00', available: true, period: 'evening' },
+  ];
+}
+
+export const shopInfo = {
+  name: 'M19 Barbershop',
+  address: 'ул. Авлиё-Ота, 36, Ташкент (метро Айбек)',
+  phone: '+998 91 004 00 19',
+  hours: 'Ежедневно 10:00–22:00',
+  instagram: '@m19barbershop',
+  instagramUrl: 'https://instagram.com/m19barbershop',
+  telegramUrl: 'https://t.me/m19barbershop',
+  websiteUrl: 'https://m19.uz',
+  email: 'info@m19barbershop.uz',
+  yandexOrgId: '204967204178',
+  yandexMapsUrl: 'https://yandex.uz/maps/org/m19/204967204178/',
+};
+
+export function buildDate(daysFromToday: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromToday);
+  return d.toISOString().split('T')[0];
+}
+
+export function timeAgo(dateString: string): string {
+  const now = new Date();
+  const date = new Date(dateString + 'T12:00:00');
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 1) return 'Сегодня';
+  if (diffDays === 1) return 'Вчера';
+  if (diffDays < 7) return `${diffDays} ${pluralDays(diffDays)} назад`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} ${pluralWeeks(Math.floor(diffDays / 7))} назад`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} ${pluralMonths(Math.floor(diffDays / 30))} назад`;
+  return `${Math.floor(diffDays / 365)} ${pluralYears(Math.floor(diffDays / 365))} назад`;
+}
+
+function pluralDays(n: number): string { return n === 1 ? 'день' : n >= 2 && n <= 4 ? 'дня' : 'дней'; }
+function pluralWeeks(n: number): string { return n === 1 ? 'неделю' : n >= 2 && n <= 4 ? 'недели' : 'недель'; }
+function pluralMonths(n: number): string { return n === 1 ? 'месяц' : n >= 2 && n <= 4 ? 'месяца' : 'месяцев'; }
+function pluralYears(n: number): string { return n === 1 ? 'год' : n >= 2 && n <= 4 ? 'года' : 'лет'; }
+
+export function formatDate(dateString: string): string {
+  const d = new Date(dateString + 'T12:00:00');
+  return d.toLocaleDateString('ru-RU', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  });
+}
+
+export function formatDateLong(dateString: string): string {
+  const d = new Date(dateString + 'T12:00:00');
+  return d.toLocaleDateString('ru-RU', {
+    weekday: 'long', month: 'long', day: 'numeric',
+  });
+}
+
+export function formatPrice(price: number): string {
+  return price.toLocaleString('ru-RU') + ' сум';
+}
+
+const RU_WEEKDAYS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+
+export function getDayNames(): { day: string; date: string; dateNum: number; fullDate: string }[] {
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    days.push({
+      day: i === 0 ? 'Сегодня' : RU_WEEKDAYS[d.getDay()],
+      date: d.toLocaleDateString('ru-RU', { day: 'numeric' }),
+      dateNum: d.getDate(),
+      fullDate: d.toISOString().split('T')[0],
+    });
+  }
+  return days;
+}
