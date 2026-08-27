@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
   Dimensions, NativeSyntheticEvent, NativeScrollEvent, Linking,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,6 +14,8 @@ import ContactCard from '../components/ContactCard';
 import ReviewCard from '../components/ReviewCard';
 import LocationCard from '../components/LocationCard';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { useLanguage } from '../i18n/LanguageContext';
+import type { Lang } from '../i18n/translations';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -22,25 +25,115 @@ const REVIEW_W = SCREEN_W * 0.72;
 const WM_SIZE = SCREEN_W * 1.527;
 const REVIEW_GAP = rs(8);
 
-const LANGS = ['RU', 'UZ', 'EN'];
+const LANGS: Lang[] = ['RU', 'UZ', 'EN'];
 
-const FALLBACK_REVIEWS = [
-  { id: '1', author: 'Дмитрий Д.', date: '21 января', rating: 5, text: 'Отличная стрижка! Мастер ОТТО внимательно выслушал пожелания и сделал именно так, как я хотел. Всё аккуратно, стильно и с учётом формы лица.', initials: 'ДД', color: '#7B8A6E' },
-  { id: '2', author: 'Валентин Столеру', date: '11 октября 2025', rating: 5, text: 'Ребята красавцы, работу свою знают и делают офигенно. Обрали карточку банковскую. Так ребята 3 дня мне звонили. Дозвониться не мог, перезвонил сам.', initials: 'ВС', color: '#6E7B8A' },
-  { id: '3', author: 'Илья К.', date: '3 сентября', rating: 5, text: 'Доверяю только профессионалам M19. Каждый раз выхожу с отличным настроением!', initials: 'ИК', color: '#8A6E7B' },
-  { id: '4', author: 'Андрей М.', date: '15 августа', rating: 5, text: 'Лучший барбершоп в Ташкенте! Атмосфера на высшем уровне, мастера настоящие профессионалы.', initials: 'АМ', color: '#6E8A7B' },
-  { id: '5', author: 'Руслан Т.', date: '20 июля', rating: 5, text: 'Хожу уже второй год, всегда ухожу довольным. Рекомендую всем!', initials: 'РТ', color: '#7B6E8A' },
+interface RawReview {
+  id: string;
+  author: string;
+  rating: number;
+  text: string;
+  dateIso: string;
+  avatarUrl?: string;
+}
+
+// Shown until the live Yandex reviews load (or if the fetch fails and
+// nothing is cached yet from a previous successful load).
+const FALLBACK_REVIEWS: RawReview[] = [
+  { id: '1', author: 'Дмитрий Д.', dateIso: '2026-01-21', rating: 5, text: 'Отличная стрижка! Мастер ОТТО внимательно выслушал пожелания и сделал именно так, как я хотел. Всё аккуратно, стильно и с учётом формы лица.' },
+  { id: '2', author: 'Валентин Столеру', dateIso: '2025-10-11', rating: 5, text: 'Ребята красавцы, работу свою знают и делают офигенно. Обрали карточку банковскую. Так ребята 3 дня мне звонили. Дозвониться не мог, перезвонил сам.' },
+  { id: '3', author: 'Илья К.', dateIso: '2025-09-03', rating: 5, text: 'Доверяю только профессионалам M19. Каждый раз выхожу с отличным настроением!' },
+  { id: '4', author: 'Андрей М.', dateIso: '2025-08-15', rating: 5, text: 'Лучший барбершоп в Ташкенте! Атмосфера на высшем уровне, мастера настоящие профессионалы.' },
+  { id: '5', author: 'Руслан Т.', dateIso: '2025-07-20', rating: 5, text: 'Хожу уже второй год, всегда ухожу довольным. Рекомендую всем!' },
 ];
 
 const REVIEW_COLORS = ['#5C6B5A', '#5A5F6B', '#6B5A62', '#5A6B66', '#655A6B'];
+const REVIEWS_CACHE_KEY = 'm19:yandexReviews:v1';
+
+const REVIEW_LOCALE: Record<Lang, string> = { RU: 'ru-RU', UZ: 'uz-Latn', EN: 'en-US' };
+
+function formatReviewDate(iso: string, lang: Lang): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return new Intl.DateTimeFormat(REVIEW_LOCALE[lang], {
+    day: 'numeric',
+    month: 'long',
+    year: sameYear ? undefined : 'numeric',
+  }).format(date);
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '??';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function mapApiRows(rows: unknown): RawReview[] {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .filter((r): r is Record<string, unknown> => !!r && typeof r === 'object')
+    .filter((r) => typeof r.yandex_id === 'string' && typeof r.author === 'string' && typeof r.text === 'string')
+    .map((r) => ({
+      id: r.yandex_id as string,
+      author: r.author as string,
+      rating: typeof r.rating === 'number' ? r.rating : 5,
+      text: r.text as string,
+      dateIso: typeof r.review_date === 'string' ? r.review_date : new Date().toISOString().slice(0, 10),
+      avatarUrl: typeof r.author_avatar_url === 'string' ? r.author_avatar_url : undefined,
+    }));
+}
 
 export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
-  const [lang, setLang] = useState('RU');
+  const { lang, setLang, t } = useLanguage();
   const [activeReviewIdx, setActiveReviewIdx] = useState(0);
+  const [rawReviews, setRawReviews] = useState<RawReview[] | null>(null);
 
-  const reviews = FALLBACK_REVIEWS;
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const cached = await AsyncStorage.getItem(REVIEWS_CACHE_KEY);
+        if (cached && !cancelled) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) setRawReviews(parsed);
+        }
+      } catch {}
+
+      try {
+        const res = await fetch(shopInfo.yandexReviewsUrl);
+        if (!res.ok) throw new Error(`status ${res.status}`);
+        const json = await res.json();
+        const mapped = mapApiRows(json?.reviews);
+        if (mapped.length > 0) {
+          if (!cancelled) setRawReviews(mapped);
+          AsyncStorage.setItem(REVIEWS_CACHE_KEY, JSON.stringify(mapped)).catch(() => {});
+        }
+      } catch {
+        // Keep showing cached/fallback reviews if the live fetch fails.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const reviews = useMemo(() => {
+    const source = rawReviews && rawReviews.length > 0 ? rawReviews : FALLBACK_REVIEWS;
+    return source.map((r) => ({
+      id: r.id,
+      author: r.author,
+      date: formatReviewDate(r.dateIso, lang),
+      rating: r.rating,
+      text: r.text,
+      initials: getInitials(r.author),
+      avatarUrl: r.avatarUrl,
+    }));
+  }, [rawReviews, lang]);
 
   const handleWriteReview = useCallback(() => {
     Linking.openURL(`${shopInfo.yandexMapsUrl}reviews/`).catch(() => {});
@@ -94,24 +187,24 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.section, styles.firstSection]}>
-          <Text style={styles.sectionTitle}>ЛОКАЦИЯ</Text>
-          <LocationCard address="Ташкент, Мирабадский район, ул. Авлиё-Ота, 36, метро «Айбек»" onPress={handleOpenLocation} />
+          <Text style={styles.sectionTitle}>{t.home.location}</Text>
+          <LocationCard address={t.home.locationAddress} ctaLabel={t.home.locationCta} onPress={handleOpenLocation} />
         </View>
 
         <View style={styles.contactGrid}>
           <View style={styles.contactRow}>
-            <ContactCard icon="phone" label="Телефон" value={shopInfo.phone} onPress={handleCall} />
-            <ContactCard icon="send" label="Telegram" value="@M19barbershop" onPress={handleOpenTelegram} />
+            <ContactCard icon="phone" label={t.home.phone} value={shopInfo.phone} onPress={handleCall} />
+            <ContactCard icon="send" label={t.home.telegram} value="@M19barbershop" onPress={handleOpenTelegram} />
           </View>
           <View style={styles.contactRow}>
-            <ContactCard icon="camera" label="Instagram" value="@m19_barbershop" onPress={handleOpenInstagram} />
-            <ContactCard icon="globe" label="Сайт" value="m19.uz" onPress={handleOpenWebsite} />
+            <ContactCard icon="camera" label={t.home.instagram} value="@m19_barbershop" onPress={handleOpenInstagram} />
+            <ContactCard icon="globe" label={t.home.website} value="m19.uz" onPress={handleOpenWebsite} />
           </View>
         </View>
 
         <View style={styles.section}>
           <View style={styles.reviewsHeader}>
-            <Text style={styles.sectionTitle}>ОТЗЫВЫ КЛИЕНТОВ</Text>
+            <Text style={styles.sectionTitle}>{t.home.reviewsTitle}</Text>
             <View style={styles.ratingBadge}>
               <Feather name="star" size={rs(10)} color="#F5C451" />
               <Text style={styles.ratingText}>4.9</Text>
@@ -136,6 +229,7 @@ export default function HomeScreen() {
                 initials={r.initials}
                 color={REVIEW_COLORS[i % REVIEW_COLORS.length]}
                 width={REVIEW_W}
+                avatarUrl={r.avatarUrl}
               />
             ))}
           </ScrollView>
@@ -150,27 +244,27 @@ export default function HomeScreen() {
 
           <View style={styles.reviewActions}>
             <TouchableOpacity style={styles.reviewActionBtn} activeOpacity={0.7}>
-              <Text style={styles.reviewActionText}>Смотреть все отзывы</Text>
+              <Text style={styles.reviewActionText}>{t.home.viewAllReviews}</Text>
               <Feather name="arrow-right" size={rs(11)} color="rgba(255,255,255,0.7)" />
             </TouchableOpacity>
             <TouchableOpacity style={[styles.reviewActionBtn, styles.reviewActionBtnAlt]} activeOpacity={0.7} onPress={handleWriteReview}>
               <Feather name="edit-3" size={rs(11)} color="#9FE870" />
-              <Text style={[styles.reviewActionText, styles.reviewActionTextAlt]}>Написать отзыв</Text>
+              <Text style={[styles.reviewActionText, styles.reviewActionTextAlt]}>{t.home.writeReview}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.heroLabel}>M19  BARBERSHOP</Text>
-          <Text style={styles.heroTitle}>ЗАПИСАТЬСЯ ОНЛАЙН</Text>
-          <Text style={styles.heroSub}>Премиальный барбершоп в центре Ташкента</Text>
+          <Text style={styles.heroLabel}>{t.home.heroLabel}</Text>
+          <Text style={styles.heroTitle}>{t.home.heroTitle}</Text>
+          <Text style={styles.heroSub}>{t.home.heroSub}</Text>
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => navigation.navigate('Booking')}
             style={styles.ctaBtn}
           >
             <Feather name="calendar" size={rs(17)} color="#0F1410" />
-            <Text style={styles.ctaBtnText}>Онлайн-запись</Text>
+            <Text style={styles.ctaBtnText}>{t.home.ctaBtn}</Text>
           </TouchableOpacity>
         </View>
 

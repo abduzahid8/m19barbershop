@@ -10,4 +10,5 @@ export const shopInfo = {
   email: 'info@m19barbershop.uz',
   yandexOrgId: '204967204178',
   yandexMapsUrl: 'https://yandex.uz/maps/org/m19/204967204178/',
+  yandexReviewsUrl: 'https://nrmhmdfkcmyuzemvpuij.supabase.co/functions/v1/yandex-reviews',
 };

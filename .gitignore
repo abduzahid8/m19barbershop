@@ -43,3 +43,6 @@ yarn-error.*
 
 # other projects
 Dovud/
+
+# Supabase CLI local state
+supabase/.temp/

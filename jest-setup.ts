@@ -1,6 +1,13 @@
 // jest-setup.js
 // All mock factory functions must use require() internally — no out-of-scope variables.
 
+// ---------- fetch ----------
+// Keep tests offline/deterministic; screens that fetch (e.g. HomeScreen's
+// Yandex reviews) should fall back to their static/cached data in tests.
+global.fetch = jest.fn(() =>
+  Promise.resolve({ ok: false, status: 0, json: async () => ({}) })
+) as unknown as typeof fetch;
+
 // ---------- Async Storage ----------
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
