@@ -161,22 +161,19 @@ export default function HomeScreen() {
     const telPromptUrl = `telprompt:${phone}`;
 
     try {
-      const canOpenTel = await Linking.canOpenURL(telUrl);
-      if (canOpenTel) {
-        await Linking.openURL(telUrl);
-        return;
-      }
-
-      const canOpenPrompt = await Linking.canOpenURL(telPromptUrl);
-      if (canOpenPrompt) {
-        await Linking.openURL(telPromptUrl);
-        return;
-      }
+      await Linking.openURL(telUrl);
+      return;
     } catch {
-      // Ignore unsupported dialer handlers on unsupported devices.
+      // Some platforms prefer the prompt variant; try it next.
     }
 
-    // Show the small modal with the tappable phone number so the user can click to call.
+    try {
+      await Linking.openURL(telPromptUrl);
+      return;
+    } catch {
+      // Show the fallback modal when the dialer can't be opened directly.
+    }
+
     setShowCallModal(true);
   }, []);
 
@@ -185,26 +182,21 @@ export default function HomeScreen() {
     const telUrl = `tel:${phone}`;
     const telPromptUrl = `telprompt:${phone}`;
 
-    try {
-      const canOpenTel = await Linking.canOpenURL(telUrl);
-      if (canOpenTel) {
-        setShowCallModal(false);
-        await Linking.openURL(telUrl);
-        return;
-      }
+    setShowCallModal(false);
 
-      const canOpenPrompt = await Linking.canOpenURL(telPromptUrl);
-      if (canOpenPrompt) {
-        setShowCallModal(false);
-        await Linking.openURL(telPromptUrl);
-        return;
-      }
+    try {
+      await Linking.openURL(telUrl);
+      return;
     } catch {
-      // fallthrough to closing modal
+      // fallthrough to prompt variant
     }
 
-    // If we couldn't open the dialer, still close the modal.
-    setShowCallModal(false);
+    try {
+      await Linking.openURL(telPromptUrl);
+    } catch {
+      // Keep the number visible if the dialer is unavailable in this environment.
+      setShowCallModal(true);
+    }
   }, []);
 
   const handleOpenTelegram = useCallback(() => {
