@@ -238,7 +238,10 @@ export default function HomeScreen() {
               <Text style={styles.modalPhone}>{shopInfo.phone}</Text>
             </Pressable>
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancelBtn} activeOpacity={0.8} onPress={() => setShowCallModal(false)}>
+              <TouchableOpacity style={styles.modalCallBtn} activeOpacity={0.8} onPress={handlePerformCall} accessibilityRole="button">
+                <Text style={styles.modalCallText}>Call</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalCancelBtn} activeOpacity={0.8} onPress={() => setShowCallModal(false)} accessibilityRole="button">
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
             </View>
@@ -450,6 +453,8 @@ const styles = StyleSheet.create({
   modalPhoneWrap: { paddingVertical: rs(10), paddingHorizontal: rs(12), borderRadius: rs(8), backgroundColor: '#1E1E1E', minWidth: 220, alignItems: 'center' },
   modalPhone: { fontSize: rs(16), color: '#9FE870', fontFamily: fonts.body, fontWeight: '600' },
   modalActions: { flexDirection: 'row', marginTop: rs(12) },
+  modalCallBtn: { backgroundColor: '#9FE870', paddingHorizontal: rs(14), paddingVertical: rs(8), borderRadius: rs(8), marginRight: rs(8) },
+  modalCallText: { color: '#0F1410', fontWeight: '600' },
   modalCancelBtn: { paddingHorizontal: rs(14), paddingVertical: rs(8) },
   modalCancelText: { color: 'rgba(255,255,255,0.6)' },
 
