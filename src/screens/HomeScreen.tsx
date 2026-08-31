@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
-  Dimensions, NativeSyntheticEvent, NativeScrollEvent, Linking, Alert,
+  Dimensions, NativeSyntheticEvent, NativeScrollEvent, Linking, Modal, Pressable,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -91,6 +91,7 @@ export default function HomeScreen() {
   const [activeReviewIdx, setActiveReviewIdx] = useState(0);
   const [rawReviews, setRawReviews] = useState<RawReview[] | null>(null);
   const [overallRating, setOverallRating] = useState<number | null>(null);
+  const [showCallModal, setShowCallModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,14 +176,36 @@ export default function HomeScreen() {
       // Ignore unsupported dialer handlers on unsupported devices.
     }
 
-    // Fallback for environments without a dialer (e.g. iOS Simulator): show the phone number so
-    // the user can call manually.
+    // Show the small modal with the tappable phone number so the user can click to call.
+    setShowCallModal(true);
+  }, []);
+
+  const handlePerformCall = useCallback(async () => {
+    const phone = shopInfo.phone.replace(/[^+\d]/g, '');
+    const telUrl = `tel:${phone}`;
+    const telPromptUrl = `telprompt:${phone}`;
+
     try {
-      Alert.alert(t.home.phone, shopInfo.phone, [{ text: 'OK', style: 'cancel' }]);
+      const canOpenTel = await Linking.canOpenURL(telUrl);
+      if (canOpenTel) {
+        setShowCallModal(false);
+        await Linking.openURL(telUrl);
+        return;
+      }
+
+      const canOpenPrompt = await Linking.canOpenURL(telPromptUrl);
+      if (canOpenPrompt) {
+        setShowCallModal(false);
+        await Linking.openURL(telPromptUrl);
+        return;
+      }
     } catch {
-      // Best-effort: if Alert isn't available, silently ignore.
+      // fallthrough to closing modal
     }
-  }, [t.home.phone]);
+
+    // If we couldn't open the dialer, still close the modal.
+    setShowCallModal(false);
+  }, []);
 
   const handleOpenTelegram = useCallback(() => {
     Linking.openURL(shopInfo.telegramUrl).catch(() => {});
@@ -204,6 +227,24 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Watermark />
+
+      {/* Small call modal shown when dialer can't be opened directly (e.g. iOS Simulator).
+          The number is tappable so users can click to attempt calling immediately. */}
+      <Modal visible={showCallModal} transparent animationType="fade" onRequestClose={() => setShowCallModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t.home.phone}</Text>
+            <Pressable onPress={handlePerformCall} style={({ pressed }) => [styles.modalPhoneWrap, pressed && { opacity: 0.7 }]}>
+              <Text style={styles.modalPhone}>{shopInfo.phone}</Text>
+            </Pressable>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} activeOpacity={0.8} onPress={() => setShowCallModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <View style={[styles.header, { paddingTop: spacing.xs }]}>
         <View style={styles.langRow}>
@@ -402,6 +443,15 @@ const styles = StyleSheet.create({
   reviewActionBtnAlt: { borderColor: 'rgba(159,232,112,0.35)', backgroundColor: 'rgba(159,232,112,0.06)' },
   reviewActionText: { fontSize: rs(10), fontFamily: fonts.body, color: 'rgba(255,255,255,0.7)' },
   reviewActionTextAlt: { color: '#9FE870' },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
+  modalCard: { width: 320, backgroundColor: '#121212', borderRadius: rs(12), padding: rs(16), alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  modalTitle: { fontSize: rs(12), color: 'rgba(255,255,255,0.6)', marginBottom: rs(8) },
+  modalPhoneWrap: { paddingVertical: rs(10), paddingHorizontal: rs(12), borderRadius: rs(8), backgroundColor: '#1E1E1E', minWidth: 220, alignItems: 'center' },
+  modalPhone: { fontSize: rs(16), color: '#9FE870', fontFamily: fonts.body, fontWeight: '600' },
+  modalActions: { flexDirection: 'row', marginTop: rs(12) },
+  modalCancelBtn: { paddingHorizontal: rs(14), paddingVertical: rs(8) },
+  modalCancelText: { color: 'rgba(255,255,255,0.6)' },
 
   wmWrap: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', zIndex: 0 },
   wmBig: {
