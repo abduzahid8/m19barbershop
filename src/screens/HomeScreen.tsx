@@ -239,10 +239,10 @@ export default function HomeScreen() {
             </Pressable>
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalCallBtn} activeOpacity={0.8} onPress={handlePerformCall} accessibilityRole="button">
-                <Text style={styles.modalCallText}>Call</Text>
+                <Text style={styles.modalCallText}>{t.home.call}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalCancelBtn} activeOpacity={0.8} onPress={() => setShowCallModal(false)} accessibilityRole="button">
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{t.home.cancel}</Text>
               </TouchableOpacity>
             </View>
           </View>
