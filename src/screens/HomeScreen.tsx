@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
-  Dimensions, NativeSyntheticEvent, NativeScrollEvent, Linking,
+  Dimensions, NativeSyntheticEvent, NativeScrollEvent, Linking, Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -90,6 +90,7 @@ export default function HomeScreen() {
   const { lang, setLang, t } = useLanguage();
   const [activeReviewIdx, setActiveReviewIdx] = useState(0);
   const [rawReviews, setRawReviews] = useState<RawReview[] | null>(null);
+  const [overallRating, setOverallRating] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,7 +100,10 @@ export default function HomeScreen() {
         const cached = await AsyncStorage.getItem(REVIEWS_CACHE_KEY);
         if (cached && !cancelled) {
           const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) setRawReviews(parsed);
+          if (parsed && Array.isArray(parsed.reviews) && parsed.reviews.length > 0) {
+            setRawReviews(parsed.reviews);
+          }
+          if (parsed && typeof parsed.rating === 'number') setOverallRating(parsed.rating);
         }
       } catch {}
 
@@ -108,9 +112,16 @@ export default function HomeScreen() {
         if (!res.ok) throw new Error(`status ${res.status}`);
         const json = await res.json();
         const mapped = mapApiRows(json?.reviews);
-        if (mapped.length > 0) {
-          if (!cancelled) setRawReviews(mapped);
-          AsyncStorage.setItem(REVIEWS_CACHE_KEY, JSON.stringify(mapped)).catch(() => {});
+        const rating = typeof json?.rating?.value === 'number' ? json.rating.value : null;
+        if (mapped.length > 0 || rating !== null) {
+          if (!cancelled) {
+            if (mapped.length > 0) setRawReviews(mapped);
+            if (rating !== null) setOverallRating(rating);
+          }
+          AsyncStorage.setItem(
+            REVIEWS_CACHE_KEY,
+            JSON.stringify({ reviews: mapped, rating })
+          ).catch(() => {});
         }
       } catch {
         // Keep showing cached/fallback reviews if the live fetch fails.
@@ -143,9 +154,35 @@ export default function HomeScreen() {
     Linking.openURL(shopInfo.yandexMapsUrl).catch(() => {});
   }, []);
 
-  const handleCall = useCallback(() => {
-    Linking.openURL(`tel:${shopInfo.phone.replace(/[^+\d]/g, '')}`).catch(() => {});
-  }, []);
+  const handleCall = useCallback(async () => {
+    const phone = shopInfo.phone.replace(/[^+\d]/g, '');
+    const telUrl = `tel:${phone}`;
+    const telPromptUrl = `telprompt:${phone}`;
+
+    try {
+      const canOpenTel = await Linking.canOpenURL(telUrl);
+      if (canOpenTel) {
+        await Linking.openURL(telUrl);
+        return;
+      }
+
+      const canOpenPrompt = await Linking.canOpenURL(telPromptUrl);
+      if (canOpenPrompt) {
+        await Linking.openURL(telPromptUrl);
+        return;
+      }
+    } catch {
+      // Ignore unsupported dialer handlers on unsupported devices.
+    }
+
+    // Fallback for environments without a dialer (e.g. iOS Simulator): show the phone number so
+    // the user can call manually.
+    try {
+      Alert.alert(t.home.phone, shopInfo.phone, [{ text: 'OK', style: 'cancel' }]);
+    } catch {
+      // Best-effort: if Alert isn't available, silently ignore.
+    }
+  }, [t.home.phone]);
 
   const handleOpenTelegram = useCallback(() => {
     Linking.openURL(shopInfo.telegramUrl).catch(() => {});
@@ -194,10 +231,10 @@ export default function HomeScreen() {
         <View style={styles.contactGrid}>
           <View style={styles.contactRow}>
             <ContactCard icon="phone" label={t.home.phone} value={shopInfo.phone} onPress={handleCall} />
-            <ContactCard icon="send" label={t.home.telegram} value="@M19barbershop" onPress={handleOpenTelegram} />
+            <ContactCard icon="send" label={t.home.telegram} value={shopInfo.telegram} onPress={handleOpenTelegram} />
           </View>
           <View style={styles.contactRow}>
-            <ContactCard icon="camera" label={t.home.instagram} value="@m19_barbershop" onPress={handleOpenInstagram} />
+            <ContactCard icon="camera" label={t.home.instagram} value={shopInfo.instagram} onPress={handleOpenInstagram} />
             <ContactCard icon="globe" label={t.home.website} value="m19.uz" onPress={handleOpenWebsite} />
           </View>
         </View>
@@ -207,7 +244,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionTitle}>{t.home.reviewsTitle}</Text>
             <View style={styles.ratingBadge}>
               <Feather name="star" size={rs(10)} color="#F5C451" />
-              <Text style={styles.ratingText}>4.9</Text>
+              <Text style={styles.ratingText}>{(overallRating ?? 4.9).toFixed(1)}</Text>
             </View>
           </View>
           <ScrollView
