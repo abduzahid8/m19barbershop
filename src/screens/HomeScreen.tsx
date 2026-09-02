@@ -92,6 +92,7 @@ export default function HomeScreen() {
   const [rawReviews, setRawReviews] = useState<RawReview[] | null>(null);
   const [overallRating, setOverallRating] = useState<number | null>(null);
   const [showCallModal, setShowCallModal] = useState(false);
+  const shouldShowFallbackCallModal = Platform.OS !== 'ios';
 
   useEffect(() => {
     let cancelled = false;
@@ -175,11 +176,14 @@ export default function HomeScreen() {
         return;
       }
     } catch {
-      // Fall through to the fallback modal for unsupported environments.
+      // Fall back to the device-native behavior below if unsupported.
     }
 
-    setShowCallModal(true);
-  }, []);
+    // iOS uses the native iPhone call sheet; only show the custom fallback on non-iOS devices.
+    if (shouldShowFallbackCallModal) {
+      setShowCallModal(true);
+    }
+  }, [shouldShowFallbackCallModal]);
 
   const handlePerformCall = useCallback(async () => {
     const phone = shopInfo.phone.replace(/[^+\d]/g, '');
@@ -203,11 +207,13 @@ export default function HomeScreen() {
         return;
       }
     } catch {
-      // Keep the number visible if the dialer is unavailable in this environment.
+      // Keep the number visible only on non-iOS fallback environments.
     }
 
-    setShowCallModal(true);
-  }, []);
+    if (shouldShowFallbackCallModal) {
+      setShowCallModal(true);
+    }
+  }, [shouldShowFallbackCallModal]);
 
   const handleOpenTelegram = useCallback(() => {
     Linking.openURL(shopInfo.telegramUrl).catch(() => {});
@@ -232,24 +238,26 @@ export default function HomeScreen() {
 
       {/* Small call modal shown when dialer can't be opened directly (e.g. iOS Simulator).
           The number is tappable so users can click to attempt calling immediately. */}
-      <Modal visible={showCallModal} transparent animationType="fade" onRequestClose={() => setShowCallModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{t.home.phone}</Text>
-            <Pressable onPress={handlePerformCall} style={({ pressed }) => [styles.modalPhoneWrap, pressed && { opacity: 0.7 }]}>
-              <Text style={styles.modalPhone}>{shopInfo.phone}</Text>
-            </Pressable>
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCallBtn} activeOpacity={0.8} onPress={handlePerformCall} accessibilityRole="button">
-                <Text style={styles.modalCallText}>{t.home.call}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalCancelBtn} activeOpacity={0.8} onPress={() => setShowCallModal(false)} accessibilityRole="button">
-                <Text style={styles.modalCancelText}>{t.home.cancel}</Text>
-              </TouchableOpacity>
+      {shouldShowFallbackCallModal && (
+        <Modal visible={showCallModal} transparent animationType="fade" onRequestClose={() => setShowCallModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>{t.home.phone}</Text>
+              <Pressable onPress={handlePerformCall} style={({ pressed }) => [styles.modalPhoneWrap, pressed && { opacity: 0.7 }]}>
+                <Text style={styles.modalPhone}>{shopInfo.phone}</Text>
+              </Pressable>
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.modalCallBtn} activeOpacity={0.8} onPress={handlePerformCall} accessibilityRole="button">
+                  <Text style={styles.modalCallText}>{t.home.call}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalCancelBtn} activeOpacity={0.8} onPress={() => setShowCallModal(false)} accessibilityRole="button">
+                  <Text style={styles.modalCancelText}>{t.home.cancel}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
       <View style={[styles.header, { paddingTop: spacing.xs }]}>
         <View style={styles.langRow}>
