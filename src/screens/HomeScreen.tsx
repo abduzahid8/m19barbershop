@@ -152,6 +152,11 @@ export default function HomeScreen() {
     Linking.openURL(`${shopInfo.yandexMapsUrl}reviews/`).catch(() => {});
   }, []);
 
+  const handleViewAllReviews = useCallback(() => {
+    // Opens the Yandex Maps reviews list in the user's browser
+    Linking.openURL(`${shopInfo.yandexMapsUrl}reviews/`).catch(() => {});
+  }, []);
+
   const handleOpenLocation = useCallback(() => {
     Linking.openURL(shopInfo.yandexMapsUrl).catch(() => {});
   }, []);
@@ -334,7 +339,7 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.reviewActions}>
-            <TouchableOpacity style={styles.reviewActionBtn} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.reviewActionBtn} activeOpacity={0.7} onPress={handleViewAllReviews} accessibilityRole="button">
               <Text style={styles.reviewActionText}>{t.home.viewAllReviews}</Text>
               <Feather name="arrow-right" size={rs(11)} color="rgba(255,255,255,0.7)" />
             </TouchableOpacity>
