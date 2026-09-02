@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
-  Dimensions, NativeSyntheticEvent, NativeScrollEvent, Linking, Modal, Pressable,
+  Dimensions, NativeSyntheticEvent, NativeScrollEvent, Linking, Modal, Pressable, Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -161,17 +161,21 @@ export default function HomeScreen() {
     const telPromptUrl = `telprompt:${phone}`;
 
     try {
-      await Linking.openURL(telUrl);
-      return;
-    } catch {
-      // Some platforms prefer the prompt variant; try it next.
-    }
+      if (Platform.OS === 'ios') {
+        const canUsePrompt = await Linking.canOpenURL(telPromptUrl);
+        if (canUsePrompt) {
+          await Linking.openURL(telPromptUrl);
+          return;
+        }
+      }
 
-    try {
-      await Linking.openURL(telPromptUrl);
-      return;
+      const canUseTel = await Linking.canOpenURL(telUrl);
+      if (canUseTel) {
+        await Linking.openURL(telUrl);
+        return;
+      }
     } catch {
-      // Show the fallback modal when the dialer can't be opened directly.
+      // Fall through to the fallback modal for unsupported environments.
     }
 
     setShowCallModal(true);
@@ -185,18 +189,24 @@ export default function HomeScreen() {
     setShowCallModal(false);
 
     try {
-      await Linking.openURL(telUrl);
-      return;
-    } catch {
-      // fallthrough to prompt variant
-    }
+      if (Platform.OS === 'ios') {
+        const canUsePrompt = await Linking.canOpenURL(telPromptUrl);
+        if (canUsePrompt) {
+          await Linking.openURL(telPromptUrl);
+          return;
+        }
+      }
 
-    try {
-      await Linking.openURL(telPromptUrl);
+      const canUseTel = await Linking.canOpenURL(telUrl);
+      if (canUseTel) {
+        await Linking.openURL(telUrl);
+        return;
+      }
     } catch {
       // Keep the number visible if the dialer is unavailable in this environment.
-      setShowCallModal(true);
     }
+
+    setShowCallModal(true);
   }, []);
 
   const handleOpenTelegram = useCallback(() => {
