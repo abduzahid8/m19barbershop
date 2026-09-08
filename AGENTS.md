@@ -1,6 +1,6 @@
 # Expo HAS CHANGED
 
-Read the exact versioned docs at https://docs.expo.dev/versions/v54.0.0/ before writing any code.
+Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing any code.
 
 ## E2E Test Status
 The full end-to-end Maestro test passes. Run it with:
@@ -19,6 +19,7 @@ The wrapper script `.maestro/run-e2e.sh` handles dynamic slot selection and date
 - Set `pointerEvents` conditionally on compactHdr in BarberDetailScreen
 - Added `testID="settingsBtn"` to ProfileScreen settings button
 - Increased bottom padding on ProfileScreen scroll content (`paddingBottom: spacing.huge + 80`)
+- **patch-package** installed (`postinstall` script reapplies patches on `npm install`). The Swift patches for expo-modules-core/autolinking were removed during the SDK 54→57 upgrade (version-pinned, no longer apply); backup at `/tmp/m19-patch-backup/`. If "Cannot find type X in scope" errors return on `run:ios`, regenerate the patch for the new version instead of reusing the backup.
 
 ### Coordinate reference (iPhone 17 Pro 402×874):
 - Service "Далее": 79%,95%

@@ -88,6 +88,16 @@ function extractReviewsArray(html: string): YandexReview[] | null {
   return null;
 }
 
+function extractAggregateRating(html: string): { value: number; count: number } | null {
+  const valueMatch = html.match(/itemProp="ratingValue" content="([\d.]+)"/);
+  if (!valueMatch) return null;
+  const countMatch = html.match(/itemProp="ratingCount" content="(\d+)"/);
+  const value = parseFloat(valueMatch[1]);
+  const count = countMatch ? parseInt(countMatch[1], 10) : 0;
+  if (!Number.isFinite(value) || !Number.isFinite(count)) return null;
+  return { value, count };
+}
+
 function normalize(r: YandexReview): NormalizedReview | null {
   const text = r.text?.trim();
   if (!r.reviewId || !text) return null;
@@ -116,6 +126,7 @@ interface SyncDiagnostics {
   normalizedCount: number;
   upsertedCount: number;
   upsertErrors: string[];
+  aggregateRating: { value: number; count: number } | null;
 }
 
 async function syncFromYandex(): Promise<SyncDiagnostics> {
@@ -135,6 +146,7 @@ async function syncFromYandex(): Promise<SyncDiagnostics> {
       `Could not locate review data in Yandex page (markup may have changed). httpStatus=${res.status} htmlLength=${html.length}`
     );
   }
+  const aggregateRating = extractAggregateRating(html);
 
   const normalized = rawReviews
     .map(normalize)
@@ -155,12 +167,17 @@ async function syncFromYandex(): Promise<SyncDiagnostics> {
 
   // Only mark the sync as fresh if at least something actually landed —
   // otherwise a systemic upsert failure would lock us into serving an
-  // empty cache for a full CACHE_TTL_MS before retrying.
-  if (upsertedCount > 0) {
-    await supabase
-      .from('yandex_reviews_sync_meta')
-      .update({ last_synced_at: new Date().toISOString() })
-      .eq('id', true);
+  // empty cache for a full CACHE_TTL_MS before retrying. The aggregate
+  // rating is independent of per-review upserts, so it updates whenever
+  // we successfully parsed the page at all.
+  const metaUpdate: Record<string, unknown> = {};
+  if (upsertedCount > 0) metaUpdate.last_synced_at = new Date().toISOString();
+  if (aggregateRating) {
+    metaUpdate.rating_value = aggregateRating.value;
+    metaUpdate.rating_count = aggregateRating.count;
+  }
+  if (Object.keys(metaUpdate).length > 0) {
+    await supabase.from('yandex_reviews_sync_meta').update(metaUpdate).eq('id', true);
   }
 
   return {
@@ -170,6 +187,7 @@ async function syncFromYandex(): Promise<SyncDiagnostics> {
     normalizedCount: normalized.length,
     upsertedCount,
     upsertErrors,
+    aggregateRating,
   };
 }
 
@@ -181,7 +199,7 @@ Deno.serve(async (req) => {
   try {
     const { data: meta } = await supabase
       .from('yandex_reviews_sync_meta')
-      .select('last_synced_at')
+      .select('last_synced_at, rating_value, rating_count')
       .eq('id', true)
       .maybeSingle();
 
@@ -208,9 +226,20 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
+    // Prefer the rating this request just fetched (if it synced), otherwise
+    // fall back to whatever was already cached in meta.
+    const freshRating =
+      syncDebug && 'aggregateRating' in syncDebug ? syncDebug.aggregateRating : null;
+    const rating = freshRating
+      ? freshRating
+      : meta?.rating_value != null
+        ? { value: Number(meta.rating_value), count: meta.rating_count ?? 0 }
+        : null;
+
     // Surface sync diagnostics whenever we have nothing (or nothing new) to
     // show, so failures are visible without needing dashboard log access.
-    const body = rows && rows.length > 0 ? { reviews: rows } : { reviews: rows ?? [], debug: syncDebug };
+    const body =
+      rows && rows.length > 0 ? { reviews: rows, rating } : { reviews: rows ?? [], rating, debug: syncDebug };
 
     return new Response(JSON.stringify(body), {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },

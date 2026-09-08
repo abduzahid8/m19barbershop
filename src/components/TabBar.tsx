@@ -4,26 +4,27 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { colors, fonts, borderRadius } from '../theme';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const iconMap: Record<string, keyof typeof Feather.glyphMap> = {
   Home: 'home',
   About: 'info',
 };
 
-export default function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export default function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
+  const labelMap: Record<string, string> = {
+    Home: t.tabBar.home,
+    About: t.tabBar.about,
+  };
 
   return (
     <View style={[styles.wrapper, { paddingBottom: Math.max(0, insets.bottom - 18) }]}>
       <BlurView intensity={24} tint="dark" style={styles.container}>
         <View style={styles.inner}>
           {state.routes.map((route, index) => {
-            const { options } = descriptors[route.key];
-            const label = options.tabBarLabel !== undefined
-              ? String(options.tabBarLabel)
-              : options.title !== undefined
-                ? options.title
-                : route.name;
+            const label = labelMap[route.name] ?? route.name;
             const isFocused = state.index === index;
 
             const onPress = () => {

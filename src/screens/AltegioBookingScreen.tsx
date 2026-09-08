@@ -5,12 +5,14 @@ import { useNavigation } from '@react-navigation/native';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, fontSize, fonts } from '../theme';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const BOOKING_URL = 'https://n129791.alteg.io';
 
 export default function AltegioBookingScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const [error, setError] = useState(false);
   const webRef = useRef<WebView>(null);
 
@@ -30,9 +32,9 @@ export default function AltegioBookingScreen() {
       {error ? (
         <View style={styles.error}>
           <Feather name="alert-circle" size={40} color={colors.textTertiary} />
-          <Text style={styles.errorText}>Не удалось загрузить страницу</Text>
+          <Text style={styles.errorText}>{t.booking.errorText}</Text>
           <TouchableOpacity onPress={handleRetry} style={styles.retryBtn}>
-            <Text style={styles.retryText}>Повторить</Text>
+            <Text style={styles.retryText}>{t.booking.retryText}</Text>
           </TouchableOpacity>
         </View>
       ) : (

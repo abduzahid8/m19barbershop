@@ -16,6 +16,7 @@ import LocationCard from '../components/LocationCard';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useLanguage } from '../i18n/LanguageContext';
 import type { Lang } from '../i18n/translations';
+import LanguageSelector from '../components/LanguageSelector';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -24,8 +25,6 @@ const PAD = spacing.xl;
 const REVIEW_W = SCREEN_W * 0.72;
 const WM_SIZE = SCREEN_W * 1.527;
 const REVIEW_GAP = rs(8);
-
-const LANGS: Lang[] = ['RU', 'UZ', 'EN'];
 
 interface RawReview {
   id: string;
@@ -36,16 +35,10 @@ interface RawReview {
   avatarUrl?: string;
 }
 
-// Shown until the live Yandex reviews load (or if the fetch fails and
-// nothing is cached yet from a previous successful load).
-const FALLBACK_REVIEWS: RawReview[] = [
-  { id: '1', author: 'Дмитрий Д.', dateIso: '2026-01-21', rating: 5, text: 'Отличная стрижка! Мастер ОТТО внимательно выслушал пожелания и сделал именно так, как я хотел. Всё аккуратно, стильно и с учётом формы лица.' },
-  { id: '2', author: 'Валентин Столеру', dateIso: '2025-10-11', rating: 5, text: 'Ребята красавцы, работу свою знают и делают офигенно. Обрали карточку банковскую. Так ребята 3 дня мне звонили. Дозвониться не мог, перезвонил сам.' },
-  { id: '3', author: 'Илья К.', dateIso: '2025-09-03', rating: 5, text: 'Доверяю только профессионалам M19. Каждый раз выхожу с отличным настроением!' },
-  { id: '4', author: 'Андрей М.', dateIso: '2025-08-15', rating: 5, text: 'Лучший барбершоп в Ташкенте! Атмосфера на высшем уровне, мастера настоящие профессионалы.' },
-  { id: '5', author: 'Руслан Т.', dateIso: '2025-07-20', rating: 5, text: 'Хожу уже второй год, всегда ухожу довольным. Рекомендую всем!' },
-];
-
+// Live Yandex reviews only: cached reviews from a previous successful load
+// are shown instantly, then refreshed from the network. No hardcoded
+// placeholder reviews — showing invented reviews as real ones risks
+// App Store rejection for misleading content.
 const REVIEW_COLORS = ['#5C6B5A', '#5A5F6B', '#6B5A62', '#5A6B66', '#655A6B'];
 const REVIEWS_CACHE_KEY = 'm19:yandexReviews:v1';
 
@@ -87,10 +80,11 @@ function mapApiRows(rows: unknown): RawReview[] {
 export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
-  const { lang, setLang, t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [activeReviewIdx, setActiveReviewIdx] = useState(0);
   const [rawReviews, setRawReviews] = useState<RawReview[] | null>(null);
   const [overallRating, setOverallRating] = useState<number | null>(null);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
   const [showCallModal, setShowCallModal] = useState(false);
   const shouldShowFallbackCallModal = Platform.OS !== 'ios';
 
@@ -98,14 +92,21 @@ export default function HomeScreen() {
     let cancelled = false;
 
     (async () => {
+      let cachedReviews: RawReview[] | null = null;
+      let cachedRating: number | null = null;
+
       try {
         const cached = await AsyncStorage.getItem(REVIEWS_CACHE_KEY);
         if (cached && !cancelled) {
           const parsed = JSON.parse(cached);
           if (parsed && Array.isArray(parsed.reviews) && parsed.reviews.length > 0) {
+            cachedReviews = parsed.reviews;
             setRawReviews(parsed.reviews);
           }
-          if (parsed && typeof parsed.rating === 'number') setOverallRating(parsed.rating);
+          if (parsed && typeof parsed.rating === 'number') {
+            cachedRating = parsed.rating;
+            setOverallRating(parsed.rating);
+          }
         }
       } catch {}
 
@@ -120,13 +121,20 @@ export default function HomeScreen() {
             if (mapped.length > 0) setRawReviews(mapped);
             if (rating !== null) setOverallRating(rating);
           }
+          // Merge with the cache: a partial response (empty reviews array
+          // or null rating) must not wipe the previously good values.
           AsyncStorage.setItem(
             REVIEWS_CACHE_KEY,
-            JSON.stringify({ reviews: mapped, rating })
+            JSON.stringify({
+              reviews: mapped.length > 0 ? mapped : (cachedReviews ?? []),
+              rating: rating ?? cachedRating,
+            })
           ).catch(() => {});
         }
       } catch {
-        // Keep showing cached/fallback reviews if the live fetch fails.
+        // Keep showing cached reviews if the live fetch fails.
+      } finally {
+        if (!cancelled) setReviewsLoading(false);
       }
     })();
 
@@ -136,7 +144,7 @@ export default function HomeScreen() {
   }, []);
 
   const reviews = useMemo(() => {
-    const source = rawReviews && rawReviews.length > 0 ? rawReviews : FALLBACK_REVIEWS;
+    const source = rawReviews ?? [];
     return source.map((r) => ({
       id: r.id,
       author: r.author,
@@ -265,16 +273,7 @@ export default function HomeScreen() {
       )}
 
       <View style={[styles.header, { paddingTop: spacing.xs }]}>
-        <View style={styles.langRow}>
-          {LANGS.map((l) => (
-            <TouchableOpacity key={l} onPress={() => setLang(l)} activeOpacity={0.7}>
-              <Text style={[styles.lang, lang === l && styles.langActive]}>{l}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <TouchableOpacity activeOpacity={0.7} style={styles.bellBtn}>
-          <Feather name="bell" size={rs(16)} color="rgba(255,255,255,0.7)" />
-        </TouchableOpacity>
+        <LanguageSelector />
       </View>
 
       <ScrollView
@@ -301,42 +300,52 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <View style={styles.reviewsHeader}>
             <Text style={styles.sectionTitle}>{t.home.reviewsTitle}</Text>
-            <View style={styles.ratingBadge}>
-              <Feather name="star" size={rs(10)} color="#F5C451" />
-              <Text style={styles.ratingText}>{(overallRating ?? 4.9).toFixed(1)}</Text>
-            </View>
+            {overallRating !== null && (
+              <View style={styles.ratingBadge}>
+                <Feather name="star" size={rs(10)} color="#F5C451" />
+                <Text style={styles.ratingText}>{overallRating.toFixed(1)}</Text>
+              </View>
+            )}
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={REVIEW_W + REVIEW_GAP}
-            decelerationRate="fast"
-            contentContainerStyle={styles.reviewList}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-          >
-            {reviews.map((r, i) => (
-              <ReviewCard
-                key={r.id}
-                name={r.author}
-                date={r.date}
-                rating={r.rating}
-                text={r.text}
-                initials={r.initials}
-                color={REVIEW_COLORS[i % REVIEW_COLORS.length]}
-                width={REVIEW_W}
-                avatarUrl={r.avatarUrl}
-              />
-            ))}
-          </ScrollView>
+          {reviewsLoading && reviews.length === 0 ? (
+            <Text style={styles.reviewsStatus}>{t.home.reviewsLoading}</Text>
+          ) : reviews.length === 0 ? (
+            <Text style={styles.reviewsStatus}>{t.home.reviewsUnavailable}</Text>
+          ) : (
+            <>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={REVIEW_W + REVIEW_GAP}
+                decelerationRate="fast"
+                contentContainerStyle={styles.reviewList}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+              >
+                {reviews.map((r, i) => (
+                  <ReviewCard
+                    key={r.id}
+                    name={r.author}
+                    date={r.date}
+                    rating={r.rating}
+                    text={r.text}
+                    initials={r.initials}
+                    color={REVIEW_COLORS[i % REVIEW_COLORS.length]}
+                    width={REVIEW_W}
+                    avatarUrl={r.avatarUrl}
+                  />
+                ))}
+              </ScrollView>
 
-          <View style={styles.paginationRow}>
-            <View style={styles.dots}>
-              {reviews.map((_, i) => (
-                <View key={i} style={[styles.dot, i === activeReviewIdx && styles.dotActive]} />
-              ))}
-            </View>
-          </View>
+              <View style={styles.paginationRow}>
+                <View style={styles.dots}>
+                  {reviews.map((_, i) => (
+                    <View key={i} style={[styles.dot, i === activeReviewIdx && styles.dotActive]} />
+                  ))}
+                </View>
+              </View>
+            </>
+          )}
 
           <View style={styles.reviewActions}>
             <TouchableOpacity style={styles.reviewActionBtn} activeOpacity={0.7} onPress={handleViewAllReviews} accessibilityRole="button">
@@ -386,16 +395,9 @@ const styles = StyleSheet.create({
   scrollContent: {},
 
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start',
     paddingHorizontal: PAD, paddingBottom: spacing.xs,
   },
-  langRow: { flexDirection: 'row', alignItems: 'center', gap: rs(4) },
-  lang: {
-    fontSize: rs(12), fontFamily: fonts.body, color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1, paddingVertical: rs(4), paddingHorizontal: rs(7),
-  },
-  langActive: { color: '#9FE870', borderBottomWidth: 2, borderBottomColor: '#9FE870' },
-  bellBtn: { padding: spacing.xs },
 
   hero: {
     alignItems: 'center', paddingTop: 0, paddingBottom: 0,
@@ -444,6 +446,11 @@ const styles = StyleSheet.create({
   },
   ratingText: { fontSize: rs(10), fontFamily: fonts.body, fontWeight: '600', color: '#F5C451' },
 
+  reviewsStatus: {
+    fontSize: rs(12), fontFamily: fonts.bodyLight, color: 'rgba(255,255,255,0.55)',
+    lineHeight: 18, marginBottom: rs(10),
+  },
+
   reviewList: { paddingRight: PAD, gap: REVIEW_GAP, marginBottom: rs(7) },
   paginationRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: rs(7),
@@ -473,7 +480,7 @@ const styles = StyleSheet.create({
   modalCancelBtn: { paddingHorizontal: rs(14), paddingVertical: rs(8) },
   modalCancelText: { color: 'rgba(255,255,255,0.6)' },
 
-  wmWrap: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', zIndex: 0 },
+  wmWrap: { ...StyleSheet.absoluteFill, overflow: 'hidden', zIndex: 0 },
   wmBig: {
     position: 'absolute',
     top: rs(220),

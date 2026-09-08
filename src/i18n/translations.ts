@@ -12,6 +12,8 @@ export interface Translations {
     instagram: string;
     website: string;
     reviewsTitle: string;
+    reviewsLoading: string;
+    reviewsUnavailable: string;
     viewAllReviews: string;
     writeReview: string;
     locationCta: string;
@@ -55,12 +57,14 @@ export const translations: Record<Lang, Translations> = {
       instagram: 'Instagram',
       website: 'Сайт',
       reviewsTitle: 'ОТЗЫВЫ КЛИЕНТОВ',
+      reviewsLoading: 'Загружаем отзывы…',
+      reviewsUnavailable: 'Отзывы временно недоступны. Посмотрите их на Яндекс Картах.',
       viewAllReviews: 'Смотреть все отзывы',
       writeReview: 'Написать отзыв',
       locationCta: 'Жми на локацию',
       heroLabel: 'M19  BARBERSHOP',
       heroTitle: 'ЗАПИСАТЬСЯ ОНЛАЙН',
-      heroSub: 'Премиальный барбершоп в центре Ташкента',
+      heroSub: 'Записывайтесь онлайн — быстро и удобно, без ожидания ответа администратора',
       ctaBtn: 'Онлайн-запись',
     },
     about: {
@@ -107,12 +111,14 @@ export const translations: Record<Lang, Translations> = {
       instagram: 'Instagram',
       website: 'Sayt',
       reviewsTitle: 'MIJOZLAR SHARHLARI',
+      reviewsLoading: 'Sharhlar yuklanmoqda…',
+      reviewsUnavailable: 'Sharhlar vaqtincha mavjud emas. Ularni Yandex Xaritalarda ko‘ring.',
       viewAllReviews: 'Barcha sharhlarni ko‘rish',
       writeReview: 'Sharh qoldirish',
       locationCta: 'Manzil uchun bosing',
       heroLabel: 'M19  BARBERSHOP',
       heroTitle: 'ONLAYN YOZILING',
-      heroSub: 'Toshkent markazidagi premium barbershop',
+      heroSub: 'Onlayn yoziling — tez va qulay, administrator javobini kutmasdan',
       ctaBtn: 'Onlayn yozilish',
     },
     about: {
@@ -159,12 +165,14 @@ export const translations: Record<Lang, Translations> = {
       instagram: 'Instagram',
       website: 'Website',
       reviewsTitle: 'CUSTOMER REVIEWS',
+      reviewsLoading: 'Loading reviews…',
+      reviewsUnavailable: 'Reviews are temporarily unavailable. See them on Yandex Maps.',
       viewAllReviews: 'View all reviews',
       writeReview: 'Write a review',
       locationCta: 'Tap for location',
       heroLabel: 'M19  BARBERSHOP',
       heroTitle: 'BOOK ONLINE',
-      heroSub: 'Premium barbershop in the heart of Tashkent',
+      heroSub: 'Book online — fast and easy, no waiting for an admin reply',
       ctaBtn: 'Book online',
     },
     about: {

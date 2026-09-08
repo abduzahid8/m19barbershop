@@ -1,26 +1,13 @@
 import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, fontSize, fonts, colors, rs } from '../theme';
+import { useLanguage } from '../i18n/LanguageContext';
+import LanguageSelector from '../components/LanguageSelector';
 
 const PAD = spacing.xl;
 const ACCENT = '#9FE870';
 
 const LOGO_BADGE = require('../../assets/logo-watermark.png');
-
-const SERVICES = [
-  'Стрижки',
-  'Оформление бороды',
-  'Бритьё',
-  'Окрашивание волос и бороды',
-  'Уход за лицом',
-  'Биозавивка и другие услуги',
-];
-
-const BOOKING_METHODS = [
-  'По телефону',
-  'Через Telegram',
-  'Самостоятельно через онлайн-запись в приложении',
-];
 
 function Bullet({ text }: { text: string }) {
   return (
@@ -33,11 +20,13 @@ function Bullet({ text }: { text: string }) {
 
 export default function AboutScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={[styles.header, { paddingTop: spacing.xs }]}>
-        <Text style={styles.headerTitle}>О НАС</Text>
+        <Text style={styles.headerTitle}>{t.about.headerTitle}</Text>
+        <LanguageSelector />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -46,57 +35,38 @@ export default function AboutScreen() {
         </View>
 
         <View style={[styles.section, styles.firstSection]}>
-          <Text style={styles.eyebrow}>M19 BARBERSHOP</Text>
-          <Text style={styles.title}>СТИЛЬ. КАЧЕСТВО.{'\n'}ВНИМАНИЕ К ДЕТАЛЯМ.</Text>
+          <Text style={styles.eyebrow}>{t.about.eyebrow}</Text>
+          <Text style={styles.title}>{t.about.title}</Text>
           <View style={styles.divider} />
 
-          <Text style={styles.paragraph}>
-            M19 Barbershop — современный барбершоп в самом центре Ташкента, рядом с
-            метро «Айбек». Мы открылись в 2022 году и за это время заслужили доверие
-            тысяч клиентов благодаря высокому качеству работы, внимательному сервису
-            и уютной атмосфере.
-          </Text>
+          <Text style={styles.paragraph}>{t.about.paragraph1}</Text>
 
           <Text style={styles.founder}>
-            Основатель — <Text style={styles.founderName}>Zayd Makhmud</Text>.
+            {t.about.founderPrefix}<Text style={styles.founderName}>{t.about.founderName}</Text>.
           </Text>
 
-          <Text style={styles.paragraph}>
-            Наша цель — чтобы каждый гость чувствовал себя комфортно и уходил
-            полностью довольным результатом. Поэтому мы уделяем внимание не только
-            качеству стрижек, но и чистоте, сервису и атмосфере.
-          </Text>
+          <Text style={styles.paragraph}>{t.about.paragraph2}</Text>
 
-          <Text style={styles.paragraph}>
-            В нашей команде работают опытные барберы со стажем от 10 до 16 лет. Мы
-            постоянно совершенствуем качество обслуживания, следим за современными
-            тенденциями и используем только профессиональные материалы.
-          </Text>
+          <Text style={styles.paragraph}>{t.about.paragraph3}</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>У НАС ДОСТУПНЫ ВСЕ ОСНОВНЫЕ УСЛУГИ</Text>
-          {SERVICES.map((s) => (
+          <Text style={styles.sectionTitle}>{t.about.servicesTitle}</Text>
+          {t.about.services.map((s) => (
             <Bullet key={s} text={s} />
           ))}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ЗАПИСАТЬСЯ МОЖНО ЛЮБЫМ УДОБНЫМ СПОСОБОМ</Text>
-          {BOOKING_METHODS.map((m) => (
+          <Text style={styles.sectionTitle}>{t.about.bookingMethodsTitle}</Text>
+          {t.about.bookingMethods.map((m) => (
             <Bullet key={m} text={m} />
           ))}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.paragraph}>
-            Мы находимся в удобной локации — в центре города, рядом с метро «Айбек»,
-            поэтому до нас легко добраться из любой части Ташкента.
-          </Text>
-          <Text style={[styles.paragraph, { marginTop: spacing.md }]}>
-            Спасибо каждому гостю за доверие. Мы продолжаем развиваться и уже
-            работаем над открытием второго филиала M19 Barbershop. До встречи!
-          </Text>
+          <Text style={styles.paragraph}>{t.about.closing1}</Text>
+          <Text style={[styles.paragraph, { marginTop: spacing.md }]}>{t.about.closing2}</Text>
         </View>
 
         <View style={{ height: 90 + insets.bottom }} />
@@ -110,6 +80,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
 
   header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: PAD, paddingBottom: spacing.xs,
   },
   headerTitle: {

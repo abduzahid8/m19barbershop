@@ -6,6 +6,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import AppNavigator from './src/navigation/AppNavigator';
+import { LanguageProvider } from './src/i18n/LanguageContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,12 +28,14 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <View style={styles.root} onLayout={onLayoutRootView}>
-          <StatusBar style="light" />
-          <AppNavigator />
-        </View>
-      </NavigationContainer>
+      <LanguageProvider>
+        <NavigationContainer>
+          <View style={styles.root} onLayout={onLayoutRootView}>
+            <StatusBar style="light" />
+            <AppNavigator />
+          </View>
+        </NavigationContainer>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

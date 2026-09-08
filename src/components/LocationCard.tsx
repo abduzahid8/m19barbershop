@@ -4,10 +4,11 @@ import { colors, spacing, fontSize, borderRadius, fonts, rs } from '../theme';
 
 interface LocationCardProps {
   address: string;
+  ctaLabel?: string;
   onPress?: () => void;
 }
 
-export default function LocationCard({ address, onPress }: LocationCardProps) {
+export default function LocationCard({ address, ctaLabel = 'Жми на локацию', onPress }: LocationCardProps) {
   return (
     <View style={styles.container}>
       <View style={styles.mapWrap}>
@@ -23,7 +24,7 @@ export default function LocationCard({ address, onPress }: LocationCardProps) {
         <Text style={styles.address}>{address}</Text>
         <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={styles.cta}>
           <Feather name="map-pin" size={rs(12)} color="#9FE870" />
-          <Text style={styles.ctaText}>Жми на локацию</Text>
+          <Text style={styles.ctaText}>{ctaLabel}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -91,7 +92,7 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '45deg' }],
   },
   mapOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.15)',
   },
   footer: {

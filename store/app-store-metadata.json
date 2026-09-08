@@ -1,0 +1,32 @@
+{
+  "appName": "M19 Barbershop",
+  "bundleId": "uz.m19barbershop.app",
+  "version": "1.1.0",
+  "primaryCategory": "Lifestyle",
+  "contentRights": "Contains business photos owned by M19 Barbershop. Confirm rights to all barber/portfolio photos before submitting.",
+  "ageRating": "4+ (no objectionable content, no user-generated content in-app, no gambling)",
+  "supportUrl": "https://m19.uz",
+  "supportEmail": "info@m19barbershop.uz",
+  "privacyPolicyUrl_HOST_THIS_FILE": "https://m19.uz/privacy  <- upload store/privacy-policy.html there; App Store Connect requires a public URL, a repo file alone is not enough",
+  "description": "M19 Barbershop — premium barbershop in Tashkent (Avliyo-Ota 36, Oybek metro). Book online in seconds, find us on the map, call or message us on Telegram, and read real Yandex Maps reviews. RU / UZ / EN.",
+  "keywords": "barbershop,barber,Tashkent,haircut,beard,M19,booking",
+  "appPrivacyAnswers": {
+    "tracking": false,
+    "dataCollected": [
+      {
+        "type": "Contact Info: Name, Phone Number",
+        "linkedToUser": true,
+        "usedForTracking": false,
+        "purposes": ["App Functionality"],
+        "where": "Entered by user in the Altegio booking webview (n129791.alteg.io)"
+      }
+    ],
+    "dataNotCollectedByAppItself": "No location, contacts, photos, or identifiers accessed by native code"
+  },
+  "reviewNotesForApple": "Core booking uses an Altegio webview with native header (close button) and error/retry state. All external links (Telegram, Instagram, Yandex Maps, tel:) open externally. No login — test without credentials. Physical barbershop services only — no digital goods, no IAP. Support: info@m19barbershop.uz, +998 91 004 00 19.",
+  "easSubmitPlaceholdersToFill": {
+    "appleId": "FILL_IN_APPLE_ID (see eas.json)",
+    "ascAppId": "FILL_IN_ASC_APP_ID (see eas.json)",
+    "appleTeamId": "FILL_IN_APPLE_TEAM_ID (see eas.json)"
+  }
+}

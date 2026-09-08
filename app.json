@@ -2,14 +2,18 @@
   "expo": {
     "name": "M19 Barbershop",
     "slug": "m19barbershop",
-    "version": "1.0.4",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "backgroundColor": "#000000",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "uz.m19barbershop.app"
+      "bundleIdentifier": "uz.m19barbershop.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -31,7 +35,9 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-web-browser",
+      "expo-status-bar"
     ]
   }
 }
